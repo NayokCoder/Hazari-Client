@@ -19,8 +19,8 @@ const LoginPage = () => {
       return;
     }
 
-    if (!/^\d{10}$/.test(mobileNumber)) {
-      alert("Please enter a valid 10-digit mobile number");
+    if (!/^\d{11}$/.test(mobileNumber)) {
+      alert("Please enter a valid 11-digit mobile number");
       return;
     }
 
@@ -32,7 +32,7 @@ const LoginPage = () => {
           console.log("Login successful:", data);
           // Store user in localStorage for session management
           localStorage.setItem("hazari-current-user", JSON.stringify(data.data.user));
-          alert(`Welcome back, ${data.data.user.name}!`);
+          // alert(`Welcome back, ${data.data.user.name}!`);
           router.push("/dashboard");
         },
         onError: (error) => {
@@ -59,23 +59,11 @@ const LoginPage = () => {
             <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-2">
               Mobile Number
             </label>
-            <input
-              type="tel"
-              id="mobileNumber"
-              value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
-              placeholder="Enter your mobile number"
-              maxLength="10"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <input type="tel" id="mobileNumber" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Enter your mobile number" maxLength="11" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={login.isPending}
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          <button type="submit" disabled={login.isPending} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
             {login.isPending ? "Logging in..." : "Login"}
           </button>
         </form>
@@ -92,9 +80,7 @@ const LoginPage = () => {
 
         {/* User Info Display (for testing) */}
         <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-600 text-center">
-            Your account stores: Name, Mobile, Balance, Games Won & Played
-          </p>
+          <p className="text-xs text-gray-600 text-center">Your account stores: Name, Mobile, Balance, Games Won & Played</p>
         </div>
       </div>
     </div>

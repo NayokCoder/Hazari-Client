@@ -45,7 +45,35 @@ const PlayPage = () => {
     const tableCode = generateTableCode();
     const prize = parseFloat(matchFee) * 4;
 
-    // Create table in database via API
+    // Create table data object
+    const tableData = {
+      tableCode,
+      author: user.id,
+      matchFee: parseFloat(matchFee),
+      prize,
+      status: "waiting",
+      maxPlayers: 4,
+      players: [
+        {
+          userId: user.id,
+          name: user.name,
+          position: 1,
+          isAuthor: true,
+          joinedAt: new Date().toISOString(),
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    };
+
+    // Save to localStorage FIRST (optimistic UI)
+    localStorage.setItem(`table-${tableCode}`, JSON.stringify(tableData));
+
+    // Navigate immediately
+    setIsDialogOpen(false);
+    setMatchFee("");
+    router.push(`/table/${tableCode}`);
+
+    // Then create in database in background
     createTable.mutate(
       {
         userId: user.id,
@@ -55,15 +83,13 @@ const PlayPage = () => {
       },
       {
         onSuccess: (data) => {
-          console.log("Table created:", data);
-          setIsDialogOpen(false);
-          setMatchFee("");
-          // Navigate to table page where author can invite players
-          router.push(`/table/${tableCode}`);
+          console.log("Table created in database:", data);
+          // Update localStorage with database response
+          localStorage.setItem(`table-${tableCode}`, JSON.stringify(data.data.table));
         },
         onError: (error) => {
-          console.error("Error creating table:", error);
-          alert(error.response?.data?.message || "Failed to create table. Please try again.");
+          console.error("Error creating table in database:", error);
+          // Table still exists in localStorage, so user can continue
         },
       }
     );
@@ -111,9 +137,7 @@ const PlayPage = () => {
                     {/* Player Name Display */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700">Your Name</label>
-                      <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                        {user.name}
-                      </div>
+                      <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{user.name}</div>
                     </div>
 
                     {/* Match Fee Input */}
@@ -121,33 +145,19 @@ const PlayPage = () => {
                       <label htmlFor="matchFee" className="text-sm font-medium text-gray-700">
                         Match Fee
                       </label>
-                      <input
-                        id="matchFee"
-                        type="number"
-                        placeholder="Enter match fee"
-                        value={matchFee}
-                        onChange={(e) => setMatchFee(e.target.value)}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {matchFee && (
-                        <p className="text-xs text-gray-500">Total Prize: ₹{parseFloat(matchFee) * 4}</p>
-                      )}
+                      <input id="matchFee" type="number" placeholder="Enter match fee" value={matchFee} onChange={(e) => setMatchFee(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      {matchFee && <p className="text-xs text-gray-500">Total Prize: ₹{parseFloat(matchFee) * 4}</p>}
                     </div>
 
                     {/* Start Now Button */}
-                    <Button
-                      variant="primary"
-                      className="w-full mt-4"
-                      onClick={handleStartNow}
-                      disabled={createTable.isPending}
-                    >
+                    <Button variant="primary" className="w-full mt-4" onClick={handleStartNow} disabled={createTable.isPending}>
                       {createTable.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Creating Table...
                         </>
                       ) : (
-                        "Start Now"
+                        "Start Now !"
                       )}
                     </Button>
                   </div>

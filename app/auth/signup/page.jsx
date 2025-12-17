@@ -29,9 +29,9 @@ const SignupPage = () => {
       return;
     }
 
-    // Validate mobile number (10 digits)
-    if (!/^\d{10}$/.test(formData.mobileNumber)) {
-      alert("Please enter a valid 10-digit mobile number");
+    // Validate mobile number (11 digits)
+    if (!/^\d{11}$/.test(formData.mobileNumber)) {
+      alert("Please enter a valid 11-digit mobile number");
       return;
     }
 
@@ -81,7 +81,7 @@ const SignupPage = () => {
             <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-2">
               Mobile Number
             </label>
-            <input type="tel" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} placeholder="Enter 10-digit mobile number" maxLength="10" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="tel" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} placeholder="Enter 11-digit mobile number" maxLength="11" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           {/* Submit Button */}

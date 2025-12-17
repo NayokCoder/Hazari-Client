@@ -12,11 +12,31 @@ const TablePage = ({ params }) => {
   const { tableCode } = use(params);
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
+  const [localTableData, setLocalTableData] = useState(null);
 
-  // Fetch table details from API
-  const { data: tableData, isLoading: tableLoading } = useTableDetails(tableCode);
+  // Load table from localStorage first
+  useEffect(() => {
+    const localData = localStorage.getItem(`table-${tableCode}`);
+    if (localData) {
+      setLocalTableData(JSON.parse(localData));
+    }
+  }, [tableCode]);
+
+  // Fetch table details from API (only if localStorage is empty)
+  const { data: tableData, isLoading: tableLoading } = useTableDetails(tableCode, {
+    enabled: !localTableData,
+  });
   const { data: invitationsData, isLoading: invitationsLoading } = useTableInvitations(tableCode);
   const sendInvitation = useSendInvitation();
+
+  // Sync API data to localStorage when it arrives
+  useEffect(() => {
+    if (tableData?.data?.table) {
+      const apiTable = tableData.data.table;
+      localStorage.setItem(`table-${tableCode}`, JSON.stringify(apiTable));
+      setLocalTableData(apiTable);
+    }
+  }, [tableData, tableCode]);
 
   // Invitation modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -320,33 +340,38 @@ const TablePage = ({ params }) => {
     return invitations.find((inv) => inv.position === position && inv.status === "pending");
   };
 
+  // Get table from localStorage or API (localStorage has priority)
+  const table = localTableData || tableData?.data?.table;
+
   // Check if current user is the table author
   const isAuthor = () => {
-    if (!currentUser || !tableData) return false;
-    const table = tableData.data?.table;
-    return table?.author?.toString() === currentUser.id;
+    if (!currentUser || !table) return false;
+    const authorId = typeof table.author === 'object' ? table.author._id || table.author.id : table.author;
+    const isTableAuthor = authorId?.toString() === currentUser.id;
+    console.log('isAuthor check:', { authorId, currentUserId: currentUser.id, isTableAuthor });
+    return isTableAuthor;
   };
 
-  if (tableLoading || !currentUser) {
-    return <LoadingSpinner message="Loading table..." />;
+  if (!currentUser) {
+    return <LoadingSpinner message="Loading user..." />;
   }
 
-  const table = tableData?.data?.table;
+  // Show loading only if we're fetching from API and have no local data
+  if (tableLoading && !localTableData) {
+    return <LoadingSpinner message="Loading table..." />;
+  }
   if (!table) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Table not found</h2>
-          <button
-            onClick={() => router.push("/play")}
-            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
+          <button onClick={() => router.push("/play")} className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
             Back to Play
           </button>
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-green-50 to-blue-50 p-2">
@@ -365,14 +390,8 @@ const TablePage = ({ params }) => {
                 <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
                   Players: {table.players.length}/{table.maxPlayers}
                 </span>
-                <span className={`px-2 py-1 rounded font-semibold ${table.status === "waiting" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>
-                  {table.status === "waiting" ? "Waiting for Players" : table.status === "playing" ? "In Progress" : table.status}
-                </span>
-                {isExtended && (
-                  <span className="px-2 py-1 rounded font-semibold bg-red-100 text-red-700 animate-pulse">
-                    Target: {winningThreshold} ⚡ EXTENDED
-                  </span>
-                )}
+                <span className={`px-2 py-1 rounded font-semibold ${table.status === "waiting" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>{table.status === "waiting" ? "Waiting for Players" : table.status === "playing" ? "In Progress" : table.status}</span>
+                {isExtended && <span className="px-2 py-1 rounded font-semibold bg-red-100 text-red-700 animate-pulse">Target: {winningThreshold} ⚡ EXTENDED</span>}
               </div>
             </div>
             <div className="flex gap-4 text-xs">
@@ -412,10 +431,7 @@ const TablePage = ({ params }) => {
                       </div>
                     ) : (
                       isAuthor() && (
-                        <button
-                          onClick={() => handleOpenInviteModal(position)}
-                          className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium"
-                        >
+                        <button onClick={() => handleOpenInviteModal(position)} className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium">
                           <UserPlus className="w-3 h-3" />
                           Invite
                         </button>
@@ -434,24 +450,12 @@ const TablePage = ({ params }) => {
                       {/* Input */}
                       <div className="mb-1">
                         <div className="flex gap-2">
-                          <input
-                            type="number"
-                            value={player?.currentInput || ""}
-                            onChange={(e) => handleInputChange(position, e.target.value)}
-                            placeholder="Enter points"
-                            className="flex-1 px-2 py-2 border w-22 border-gray-300 rounded-md"
-                          />
+                          <input type="number" value={player?.currentInput || ""} onChange={(e) => handleInputChange(position, e.target.value)} placeholder="Enter points" className="flex-1 px-2 py-2 border w-22 border-gray-300 rounded-md" />
                         </div>
                       </div>
                     </>
                   ) : (
-                    <div className="flex items-center justify-center h-32">
-                      {invitation ? (
-                        <Users className="w-12 h-12 text-orange-300" />
-                      ) : (
-                        <Users className="w-12 h-12 text-gray-300" />
-                      )}
-                    </div>
+                    <div className="flex items-center justify-center h-32">{invitation ? <Users className="w-12 h-12 text-orange-300" /> : <Users className="w-12 h-12 text-gray-300" />}</div>
                   )}
                 </div>
               </div>
@@ -537,24 +541,14 @@ const TablePage = ({ params }) => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Invite Player to Position {selectedPosition}</DialogTitle>
-              <DialogDescription>
-                Enter the 6-digit Player ID to send an invitation. Match Fee: ₹{table.matchFee}
-              </DialogDescription>
+              <DialogDescription>Enter the 6-digit Player ID to send an invitation. Match Fee: ₹{table.matchFee}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <label htmlFor="playerId" className="text-sm font-medium text-gray-700">
                   Player ID
                 </label>
-                <input
-                  id="playerId"
-                  type="text"
-                  placeholder="Enter 6-digit Player ID"
-                  value={invitePlayerId}
-                  onChange={(e) => setInvitePlayerId(e.target.value)}
-                  maxLength={6}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input id="playerId" type="text" placeholder="Enter 6-digit Player ID" value={invitePlayerId} onChange={(e) => setInvitePlayerId(e.target.value)} maxLength={6} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
 
               <div className="bg-blue-50 rounded-lg p-3">
@@ -569,11 +563,7 @@ const TablePage = ({ params }) => {
                 </div>
               </div>
 
-              <button
-                onClick={handleSendInvitation}
-                disabled={sendInvitation.isPending || !invitePlayerId}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
+              <button onClick={handleSendInvitation} disabled={sendInvitation.isPending || !invitePlayerId} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
                 {sendInvitation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />

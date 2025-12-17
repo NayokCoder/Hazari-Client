@@ -6,6 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Home, Play, User, LogOut, Wallet, Menu, X, Gamepad2 } from "lucide-react";
 import UserAvatar from "./shared/UserAvatar";
+import InvitationNotifications from "./shared/InvitationNotifications";
 
 export function Header() {
   const router = useRouter();
@@ -93,6 +94,9 @@ export function Header() {
               <span className="text-sm font-semibold text-green-700">₹{user.balance}</span>
             </div>
 
+            {/* Invitation Notifications */}
+            <InvitationNotifications playerId={user.playerId} />
+
             {/* User Info */}
             <Link
               href="/profile"
@@ -137,13 +141,15 @@ export function Header() {
             {/* User Info Mobile */}
             <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
               <UserAvatar name={user.name} size="md" showOnline={true} />
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-gray-900">{user.name}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Wallet className="w-3 h-3 text-green-600" />
                   <span className="text-sm font-medium text-green-600">₹{user.balance}</span>
                 </div>
               </div>
+              {/* Mobile Invitation Notifications */}
+              <InvitationNotifications playerId={user.playerId} />
             </div>
 
             {/* Mobile Nav Links */}
