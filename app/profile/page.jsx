@@ -10,13 +10,30 @@ const ProfilePage = () => {
 
   useEffect(() => {
     // Load current user
-    const currentUser = localStorage.getItem("hazari-current-user");
-    if (currentUser) {
-      setUser(JSON.parse(currentUser));
-    } else {
-      // Redirect to login if no user logged in
-      router.push("/auth/login");
-    }
+    const loadUser = () => {
+      const currentUser = localStorage.getItem("hazari-current-user");
+      if (currentUser) {
+        setUser(JSON.parse(currentUser));
+        console.log("👤 Profile: User data loaded/refreshed");
+      } else {
+        // Redirect to login if no user logged in
+        router.push("/auth/login");
+      }
+    };
+
+    loadUser();
+
+    // Listen for user updates (e.g., after game completion)
+    const handleUserUpdate = () => {
+      console.log("🔄 Profile: User data updated, refreshing...");
+      loadUser();
+    };
+
+    window.addEventListener("userUpdated", handleUserUpdate);
+
+    return () => {
+      window.removeEventListener("userUpdated", handleUserUpdate);
+    };
   }, [router]);
 
   const handleLogout = () => {

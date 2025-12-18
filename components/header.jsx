@@ -16,10 +16,26 @@ export function Header() {
 
   useEffect(() => {
     // Load current user
-    const currentUser = localStorage.getItem("hazari-current-user");
-    if (currentUser) {
-      setUser(JSON.parse(currentUser));
-    }
+    const loadUser = () => {
+      const currentUser = localStorage.getItem("hazari-current-user");
+      if (currentUser) {
+        setUser(JSON.parse(currentUser));
+      }
+    };
+
+    loadUser();
+
+    // Listen for user updates
+    const handleUserUpdate = () => {
+      console.log("🔄 Header: User data updated, refreshing...");
+      loadUser();
+    };
+
+    window.addEventListener("userUpdated", handleUserUpdate);
+
+    return () => {
+      window.removeEventListener("userUpdated", handleUserUpdate);
+    };
   }, []);
 
   const handleLogout = () => {

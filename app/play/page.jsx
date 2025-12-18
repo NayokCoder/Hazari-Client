@@ -74,6 +74,7 @@ const PlayPage = () => {
     router.push(`/table/${tableCode}`);
 
     // Then create in database in background
+    console.log("Creating table in database...");
     createTable.mutate(
       {
         userId: user.id,
@@ -86,6 +87,17 @@ const PlayPage = () => {
           console.log("Table created in database:", data);
           // Update localStorage with database response
           localStorage.setItem(`table-${tableCode}`, JSON.stringify(data.data.table));
+
+          // Update user balance if returned
+          if (data.data.newBalance !== undefined) {
+            const updatedUser = { ...user, balance: data.data.newBalance };
+            localStorage.setItem("hazari-current-user", JSON.stringify(updatedUser));
+            setUser(updatedUser);
+
+            // Notify other components
+            window.dispatchEvent(new Event("userUpdated"));
+            console.log("💰 Balance updated after creating table:", data.data.newBalance);
+          }
         },
         onError: (error) => {
           console.error("Error creating table in database:", error);

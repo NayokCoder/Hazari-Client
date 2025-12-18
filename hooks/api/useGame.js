@@ -33,10 +33,13 @@ export const useAddRound = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ gameId, roundData }) => gameService.addRound(gameId, roundData),
+    mutationFn: ({ gameId, roundData, tableCode }) => gameService.addRound(gameId, roundData),
     onSuccess: (data, variables) => {
       console.log("Round added successfully:", data);
+      // Invalidate both the game ID query and the active game query
       queryClient.invalidateQueries({ queryKey: ["game", variables.gameId] });
+      queryClient.invalidateQueries({ queryKey: ["game", "active", variables.tableCode] });
+      queryClient.invalidateQueries({ queryKey: ["game", "active"] });
     },
     onError: (error) => {
       console.error("Add round error:", error);

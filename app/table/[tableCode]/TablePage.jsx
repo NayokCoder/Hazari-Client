@@ -2,7 +2,8 @@
 
 import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useTableDetails, useTableInvitations, useSendInvitation } from "@/hooks/api/useTable";
+import { useTableDetails, useTableInvitations, useSendInvitation, useResetTable } from "@/hooks/api/useTable";
+import { useActiveGame, useStartGame, useAddRound, useCompleteGame } from "@/hooks/api/useGame";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Users, Send, Loader2, UserPlus } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -29,14 +30,33 @@ const TablePage = ({ params }) => {
   const { data: invitationsData, isLoading: invitationsLoading } = useTableInvitations(tableCode);
   const sendInvitation = useSendInvitation();
 
+  // Fetch active game data from API
+  const { data: gameData, isLoading: gameLoading } = useActiveGame(tableCode, {
+    refetchInterval: 4000, // Refresh every 5 seconds
+  });
+  const startGameMutation = useStartGame();
+  const addRoundMutation = useAddRound();
+  const completeGameMutation = useCompleteGame();
+  const resetTableMutation = useResetTable();
+
+  // Track if we've attempted to start the game
+  const [gameStartAttempted, setGameStartAttempted] = React.useState(false);
+
   // Sync API data to localStorage when it arrives
   useEffect(() => {
     if (tableData?.data?.table) {
       const apiTable = tableData.data.table;
       localStorage.setItem(`table-${tableCode}`, JSON.stringify(apiTable));
       setLocalTableData(apiTable);
+
+      // Auto-start game when table is full and game not started yet
+      if (apiTable.players?.length === 4 && apiTable.status === "playing" && !gameData?.data?.game && !gameStartAttempted && !startGameMutation.isPending) {
+        console.log("Table is full, starting game...");
+        setGameStartAttempted(true);
+        startGameMutation.mutate({ tableCode });
+      }
     }
-  }, [tableData, tableCode]);
+  }, [tableData, tableCode, gameData?.data?.game, gameStartAttempted, startGameMutation.isPending]);
 
   // Invitation modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -73,22 +93,48 @@ const TablePage = ({ params }) => {
   const [isExtended, setIsExtended] = useState(false);
   const [winningThreshold, setWinningThreshold] = useState(1000);
 
-  // Load data from localStorage on mount
+  // Load game data from API when available
   useEffect(() => {
-    const savedPlayers = localStorage.getItem(`game-${tableCode}-players`);
-    const savedHistory = localStorage.getItem(`game-${tableCode}-history`);
-    const savedSettings = localStorage.getItem(`game-${tableCode}-settings`);
+    if (gameData?.data?.game) {
+      const game = gameData.data.game;
+      console.log("🎮 Game data from API:", game);
+      console.log(
+        "📊 Player scores:",
+        game.players.map((p) => ({ name: p.name, score: p.totalScore }))
+      );
 
-    if (savedPlayers) {
-      setPlayers(JSON.parse(savedPlayers));
+      // Update players with scores from API, preserve current inputs
+      setPlayers((prevPlayers) => {
+        const updatedPlayers = game.players.map((p) => {
+          const prevPlayer = prevPlayers.find((pp) => pp.id === p.position);
+          return {
+            id: p.position,
+            name: p.name,
+            total: p.totalScore || 0,
+            currentInput: prevPlayer?.currentInput || "",
+            isAuthor: p.isAuthor || false,
+          };
+        });
+        console.log("✅ Updated local players:", updatedPlayers);
+        return updatedPlayers;
+      });
+
+      // Update round history from API
+      setRoundHistory(game.rounds || []);
+
+      // Update game settings
+      setWinningThreshold(game.winningThreshold || 1000);
+      setIsExtended(game.isExtended || false);
+      setGameSettings({
+        matchFee: game.matchFee,
+        prize: game.prize,
+        author: game.tableCode,
+        createdAt: game.createdAt,
+      });
+
+      console.log("Game data loaded from API:", game);
     }
-    if (savedHistory) {
-      setRoundHistory(JSON.parse(savedHistory));
-    }
-    if (savedSettings) {
-      setGameSettings(JSON.parse(savedSettings));
-    }
-  }, [tableCode]);
+  }, [gameData]);
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -105,7 +151,7 @@ const TablePage = ({ params }) => {
   const saveFinalGameData = (winnerData, finalPlayers, finalRound) => {
     const matchFee = gameSettings?.matchFee || 0;
     const prize = gameSettings?.prize || 0;
-    const winAmount = prize - matchFee;
+    const winAmount = prize; // Full prize pool
 
     const gameData = {
       tableCode,
@@ -163,114 +209,169 @@ const TablePage = ({ params }) => {
       return;
     }
 
-    // Create new round data
-    const newRound = {
-      roundNumber: roundHistory.length + 1,
-      players: players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        points: parseInt(player.currentInput) || 0,
-      })),
+    // Get game ID from API data
+    const gameId = gameData?.data?.game?.id;
+    if (!gameId) {
+      alert("Game not started yet. Please wait for all players to join.");
+      return;
+    }
+
+    // Prepare round data for API (needs userId instead of id)
+    const table = localTableData || tableData?.data?.table;
+    const roundDataForAPI = {
+      players: players.map((player) => {
+        const tablePlayer = table?.players?.find((p) => p.position === player.id);
+        // Extract userId - it might be an object or a string
+        const userId = typeof tablePlayer?.userId === "object" ? tablePlayer?.userId?._id || tablePlayer?.userId?.id || tablePlayer?.userId : tablePlayer?.userId || "";
+
+        return {
+          userId: userId.toString(),
+          name: player.name,
+          points: parseInt(player.currentInput) || 0,
+        };
+      }),
     };
 
-    // Update players totals and clear inputs
-    const updatedPlayers = players.map((player) => {
-      const points = parseInt(player.currentInput) || 0;
-      return {
+    // Clear inputs immediately for better UX
+    setPlayers(
+      players.map((player) => ({
         ...player,
-        total: player.total + points,
         currentInput: "",
-      };
-    });
+      }))
+    );
 
-    setPlayers(updatedPlayers);
-    setRoundHistory([newRound, ...roundHistory]); // Add to front (most recent first)
+    // Save to API (totals and rounds will be updated from API refetch)
+    addRoundMutation.mutate(
+      { gameId, roundData: roundDataForAPI, tableCode },
+      {
+        onSuccess: (response) => {
+          // Check if game is won (server handles winner detection)
+          if (response.data?.game?.status === "completed") {
+            const game = response.data.game;
 
-    // Check for players who reached the current threshold
-    const playersAboveThreshold = updatedPlayers.filter((player) => player.total >= winningThreshold);
+            if (game.winner) {
+              // Call completeGame API to finalize the game and update balances
+              completeGameMutation.mutate(game.id, {
+                onSuccess: async (completeResponse) => {
+                  // Refetch ALL players' profiles to get updated balances
+                  if (currentUser) {
+                    try {
+                      const response = await fetch(`http://localhost:5000/api/users/${currentUser.id}`);
+                      const userData = await response.json();
 
-    if (playersAboveThreshold.length > 0) {
-      // If threshold is 1000
-      if (winningThreshold === 1000) {
-        if (playersAboveThreshold.length === 1) {
-          // Only 1 player reached 1000, they win
-          const winningPlayer = playersAboveThreshold[0];
-          const finalRoundPoints = parseInt(players.find((p) => p.id === winningPlayer.id)?.currentInput) || 0;
+                      if (userData.success && userData.data?.user) {
+                        const updatedUser = {
+                          ...currentUser,
+                          balance: userData.data.user.balance,
+                          gamesPlayed: userData.data.user.gamesPlayed,
+                          gamesWon: userData.data.user.gamesWon,
+                          totalWinnings: userData.data.user.totalWinnings,
+                        };
 
-          const winnerData = {
-            ...winningPlayer,
-            finalRoundPoints,
-          };
+                        localStorage.setItem("hazari-current-user", JSON.stringify(updatedUser));
+                        setCurrentUser(updatedUser);
 
-          // Save final game data
-          saveFinalGameData(winnerData, updatedPlayers, newRound);
+                        // Dispatch event to notify other components (like Header and Profile)
 
-          setWinner(winnerData);
-          setShowWinnerModal(true);
-        } else if (playersAboveThreshold.length >= 2) {
-          // 2 or more players reached 1000, extend to 1500
-          setIsExtended(true);
-          setWinningThreshold(1500);
-          alert("Match Extended! Two or more players reached 1000. New winning threshold: 1500 points!");
-        }
+                        window.dispatchEvent(new Event("userUpdated"));
+                      } else {
+                        console.error("❌ Invalid user data response:", userData);
+                      }
+                    } catch (error) {
+                      console.error("❌ Failed to refresh user profile:", error);
+                    }
+                  } else {
+                    console.warn("⚠️ No currentUser found, cannot refresh profile");
+                  }
+
+                  // Show winner modal
+                  setWinner({
+                    name: game.winner.name,
+                    total: game.winner.finalScore,
+                    finalRoundPoints: game.winner.finalRoundPoints,
+                  });
+                  setShowWinnerModal(true);
+                },
+                onError: (error) => {
+                  console.error("❌ Error finalizing game:", error);
+                  // Still show winner modal even if finalization fails
+                  setWinner({
+                    name: game.winner.name,
+                    total: game.winner.finalScore,
+                    finalRoundPoints: game.winner.finalRoundPoints,
+                  });
+                  setShowWinnerModal(true);
+                },
+              });
+            } else {
+            }
+          } else if (response.data?.game?.isExtended && response.data?.game?.winningThreshold === 1500) {
+            // Game was extended (check isExtended flag instead of winningThresholdUpdated)
+
+            setIsExtended(true);
+            setWinningThreshold(1500);
+            alert("Match Extended! Two or more players reached 1000. New winning threshold: 1500 points!");
+          } else {
+            console.log("ℹ️ Game still active, current threshold:", response.data?.game?.winningThreshold);
+          }
+        },
+        onError: (error) => {
+          console.error("Error saving round:", error);
+          alert("Failed to save round to database");
+        },
       }
-      // If threshold is 1500 (extended game)
-      else if (winningThreshold === 1500) {
-        if (playersAboveThreshold.length === 1) {
-          // Only 1 player reached 1500, they win
-          const winningPlayer = playersAboveThreshold[0];
-          const finalRoundPoints = parseInt(players.find((p) => p.id === winningPlayer.id)?.currentInput) || 0;
+    );
 
-          const winnerData = {
-            ...winningPlayer,
-            finalRoundPoints,
-          };
-
-          // Save final game data
-          saveFinalGameData(winnerData, updatedPlayers, newRound);
-
-          setWinner(winnerData);
-          setShowWinnerModal(true);
-        } else if (playersAboveThreshold.length >= 2) {
-          // 2 or more players reached 1500, highest score wins
-          const winningPlayer = playersAboveThreshold.reduce((highest, current) => (current.total > highest.total ? current : highest));
-
-          const finalRoundPoints = parseInt(players.find((p) => p.id === winningPlayer.id)?.currentInput) || 0;
-
-          const winnerData = {
-            ...winningPlayer,
-            finalRoundPoints,
-          };
-
-          // Save final game data
-          saveFinalGameData(winnerData, updatedPlayers, newRound);
-
-          setWinner(winnerData);
-          setShowWinnerModal(true);
-        }
-      }
-    }
+    // Winner detection is now handled by the server
+    /* Old client-side winner detection removed - now handled in API response */
   };
 
   // Reset game after winner
   const handleResetGame = () => {
-    // Reset all players to 0 but preserve names and author status
-    const resetPlayers = players.map((player) => ({
-      ...player,
-      total: 0,
-      currentInput: "",
-    }));
+    // Reset table status in database
+    resetTableMutation.mutate(tableCode, {
+      onSuccess: () => {
+        // console.log("✅ Table reset, starting new game...");
 
-    setPlayers(resetPlayers);
-    setRoundHistory([]);
-    setWinner(null);
-    setShowWinnerModal(false);
-    setIsExtended(false);
-    setWinningThreshold(1000);
+        // Reset local state
+        // const resetPlayers = players.map((player) => ({
+        //   ...player,
+        //   total: 0,
+        //   currentInput: "",
+        // }));
 
-    // Save reset players to localStorage (preserving names)
-    localStorage.setItem(`game-${tableCode}-players`, JSON.stringify(resetPlayers));
-    localStorage.removeItem(`game-${tableCode}-history`);
+        setPlayers(resetPlayers);
+        setRoundHistory([]);
+        setWinner(null);
+        setShowWinnerModal(false);
+        setIsExtended(false);
+        setWinningThreshold(1000);
+        setGameStartAttempted(false); // Allow game to start again
+
+        // Save reset players to localStorage (preserving names)
+        localStorage.setItem(`game-${tableCode}-players`, JSON.stringify(resetPlayers));
+        localStorage.removeItem(`game-${tableCode}-history`);
+
+        // Start new game
+        // console.log("🎮 Starting new game...");
+        startGameMutation.mutate(
+          { tableCode },
+          {
+            onSuccess: () => {
+              // console.log("✅ New game started!");
+            },
+            onError: (error) => {
+              console.error("❌ Failed to start new game:", error);
+              alert("Failed to start new game. Please refresh the page.");
+            },
+          }
+        );
+      },
+      onError: (error) => {
+        console.error("❌ Failed to reset table:", error);
+        alert("Failed to reset table. Please try again.");
+      },
+    });
   };
 
   // Handle leave table
@@ -321,8 +422,7 @@ const TablePage = ({ params }) => {
       },
       {
         onSuccess: (data) => {
-          console.log("Invitation sent:", data);
-          alert(`Invitation sent to Player ${invitePlayerId}!`);
+          // alert(`Invitation sent to Player ${invitePlayerId}!`);
           setInviteModalOpen(false);
           setInvitePlayerId("");
         },
@@ -346,9 +446,9 @@ const TablePage = ({ params }) => {
   // Check if current user is the table author
   const isAuthor = () => {
     if (!currentUser || !table) return false;
-    const authorId = typeof table.author === 'object' ? table.author._id || table.author.id : table.author;
+    const authorId = typeof table.author === "object" ? table.author._id || table.author.id : table.author;
     const isTableAuthor = authorId?.toString() === currentUser.id;
-    console.log('isAuthor check:', { authorId, currentUserId: currentUser.id, isTableAuthor });
+    console.log("isAuthor check:", { authorId, currentUserId: currentUser.id, isTableAuthor });
     return isTableAuthor;
   };
 
@@ -493,45 +593,50 @@ const TablePage = ({ params }) => {
 
         {/* Winner Modal */}
         {showWinnerModal && winner && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-              {/* Congratulations Header */}
-              <div className="mb-6">
-                <div className="text-6xl mb-4">🎉</div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Congratulations!</h2>
-                <p className="text-xl font-semibold text-blue-600">{winner.name}</p>
-                {isExtended && <p className="text-sm font-medium text-red-600 mt-2">⚡ Extended Match Victory!</p>}
-              </div>
-
-              {/* Winner Stats */}
-              <div className="space-y-4 mb-6">
-                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Final Score</p>
-                  <p className="text-4xl font-bold text-orange-600">{winner.total}</p>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="relative w-full max-w-md rounded-xl border bg-background p-6 shadow-xl animate-in fade-in zoom-in-95">
+              {/* Header */}
+              <div className="flex flex-col items-center gap-2 border-b pb-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <span className="text-3xl">🎉</span>
                 </div>
 
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Final Round Points</p>
-                  <p className="text-2xl font-bold text-blue-600">{winner.finalRoundPoints}</p>
+                <h2 className="text-2xl font-semibold tracking-tight">Congratulations</h2>
+
+                <p className="text-sm text-muted-foreground">Winner of the match</p>
+
+                <p className="text-lg font-bold text-primary">{winner.name}</p>
+
+                {isExtended && <span className="rounded-md bg-destructive/10 px-3 py-1 text-xs font-medium text-destructive">⚡ Extended Match Victory</span>}
+              </div>
+
+              {/* Stats */}
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Final Score</p>
+                  <p className="text-3xl font-bold">{winner.total}</p>
+                </div>
+
+                <div className="rounded-lg border p-4 text-center">
+                  <p className="text-xs text-muted-foreground">Final Round Points</p>
+                  <p className="text-xl font-semibold">{winner.finalRoundPoints}</p>
                 </div>
 
                 {gameSettings && (
-                  <>
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-5 border-2 border-green-300">
-                      <p className="text-sm text-gray-600 mb-1">You Won</p>
-                      <p className="text-4xl font-bold text-green-600">₹{gameSettings.prize - gameSettings.matchFee}</p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        (Prize: ₹{gameSettings.prize} - Fee: ₹{gameSettings.matchFee})
-                      </p>
-                    </div>
-                  </>
+                  <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 text-center">
+                    <p className="text-xs text-muted-foreground">You Won</p>
+                    <p className="text-3xl font-bold text-green-600">₹{gameSettings.prize}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Prize Pool ₹{gameSettings.matchFee} × 4 players</p>
+                  </div>
                 )}
               </div>
 
-              {/* Close Button */}
-              <button onClick={handleResetGame} className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-semibold text-lg shadow-lg">
-                Start New Game
-              </button>
+              {/* Footer */}
+              <div className="mt-6">
+                <button onClick={handleResetGame} className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  Start New Game
+                </button>
+              </div>
             </div>
           </div>
         )}

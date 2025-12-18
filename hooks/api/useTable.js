@@ -76,6 +76,24 @@ export const useLeaveTable = () => {
   });
 };
 
+// Reset table for new game
+export const useResetTable = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (tableCode) => tableService.resetTable(tableCode),
+    onSuccess: (data, tableCode) => {
+      console.log("Table reset successfully:", data);
+      // Invalidate table queries
+      queryClient.invalidateQueries({ queryKey: ["table", tableCode] });
+      queryClient.invalidateQueries({ queryKey: ["game", "active", tableCode] });
+    },
+    onError: (error) => {
+      console.error("Reset table error:", error);
+    },
+  });
+};
+
 // Get table invitations
 export const useTableInvitations = (tableCode, options = {}) => {
   return useQuery({
