@@ -9,30 +9,84 @@ import { Users, Send, Loader2, UserPlus } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 const TablePage = ({ params }) => {
-  console.log(params);
-  const { tableCode } = use(params);
+  const unwrappedParams = use(params);
+  // Decode URI component in case Next.js encoded the hyphen or other characters
+  const rawTableCode = unwrappedParams?.tableCode;
+  const tableCode = rawTableCode ? decodeURIComponent(rawTableCode) : null;
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(null);
   const [localTableData, setLocalTableData] = useState(null);
 
+  // Winner state (declared early to use in hooks)
+  const [winner, setWinner] = useState(null);
+  const [showWinnerModal, setShowWinnerModal] = useState(false);
+  const [isResettingGame, setIsResettingGame] = useState(false);
+  const [isCompletingGame, setIsCompletingGame] = useState(false);
+  const [isAddingPoints, setIsAddingPoints] = useState(false);
+
+  // Use ref for immediate duplicate prevention (updates synchronously)
+  const isCompletingRef = React.useRef(false);
+
+  // Validate table code format
+  useEffect(() => {
+    if (!tableCode) {
+      console.error("❌ No table code provided");
+      alert("No table code provided. Please check the URL.");
+      router.push("/play");
+      return;
+    }
+
+    // Trim any whitespace from tableCode
+    const trimmedCode = tableCode.trim();
+    const isValidTableCode = /^HGS-\d{6}$/.test(trimmedCode);
+
+    if (!isValidTableCode) {
+      console.error("❌ Invalid table code format:", tableCode);
+      alert(`Invalid table code format. Table codes should be in format HGS-XXXXXX (e.g., HGS-123456)`);
+      router.push("/play");
+      return;
+    }
+
+    console.log("✅ Table code validated:", trimmedCode);
+  }, [tableCode, router]);
+
   // Load table from localStorage first
   useEffect(() => {
-    const localData = localStorage.getItem(`table-${tableCode}`);
+    if (!tableCode) return;
+    const trimmedCode = tableCode.trim();
+    const localData = localStorage.getItem(`table-${trimmedCode}`);
     if (localData) {
       setLocalTableData(JSON.parse(localData));
     }
   }, [tableCode]);
 
   // Fetch table details from API (only if localStorage is empty)
-  const { data: tableData, isLoading: tableLoading } = useTableDetails(tableCode, {
-    enabled: !localTableData,
+  const trimmedTableCode = tableCode?.trim() || "";
+  const { data: tableData, isLoading: tableLoading, error: tableError } = useTableDetails(trimmedTableCode, {
+    enabled: !localTableData && !!trimmedTableCode && /^HGS-\d{6}$/.test(trimmedTableCode),
+    retry: false, // Don't retry on 404
   });
-  const { data: invitationsData, isLoading: invitationsLoading } = useTableInvitations(tableCode);
+
+  // Handle table not found error
+  useEffect(() => {
+    if (tableError) {
+      console.error("Table fetch error:", tableError);
+      if (tableError.response?.status === 404) {
+        alert(`Table ${trimmedTableCode} not found. Please check the table code and try again.`);
+        // Clear invalid localStorage data
+        localStorage.removeItem(`table-${trimmedTableCode}`);
+        localStorage.removeItem(`game-${trimmedTableCode}-players`);
+        localStorage.removeItem(`game-${trimmedTableCode}-history`);
+        router.push("/play");
+      }
+    }
+  }, [tableError, trimmedTableCode, router]);
+  const { data: invitationsData, isLoading: invitationsLoading } = useTableInvitations(trimmedTableCode);
   const sendInvitation = useSendInvitation();
 
   // Fetch active game data from API
-  const { data: gameData, isLoading: gameLoading } = useActiveGame(tableCode, {
-    refetchInterval: 4000, // Refresh every 5 seconds
+  const { data: gameData, isLoading: gameLoading, refetch: refetchGame } = useActiveGame(trimmedTableCode, {
+    refetchInterval: showWinnerModal || isResettingGame || isCompletingGame ? false : 4000, // Stop polling when completing, showing modal, or resetting
   });
   const startGameMutation = useStartGame();
   const addRoundMutation = useAddRound();
@@ -46,17 +100,17 @@ const TablePage = ({ params }) => {
   useEffect(() => {
     if (tableData?.data?.table) {
       const apiTable = tableData.data.table;
-      localStorage.setItem(`table-${tableCode}`, JSON.stringify(apiTable));
+      localStorage.setItem(`table-${trimmedTableCode}`, JSON.stringify(apiTable));
       setLocalTableData(apiTable);
 
       // Auto-start game when table is full and game not started yet
       if (apiTable.players?.length === 4 && apiTable.status === "playing" && !gameData?.data?.game && !gameStartAttempted && !startGameMutation.isPending) {
         console.log("Table is full, starting game...");
         setGameStartAttempted(true);
-        startGameMutation.mutate({ tableCode });
+        startGameMutation.mutate({ tableCode: trimmedTableCode });
       }
     }
-  }, [tableData, tableCode, gameData?.data?.game, gameStartAttempted, startGameMutation.isPending]);
+  }, [tableData, trimmedTableCode, gameData?.data?.game, gameStartAttempted, startGameMutation.isPending]);
 
   // Invitation modal state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -84,10 +138,6 @@ const TablePage = ({ params }) => {
 
   // Game settings
   const [gameSettings, setGameSettings] = useState(null);
-
-  // Winner state
-  const [winner, setWinner] = useState(null);
-  const [showWinnerModal, setShowWinnerModal] = useState(false);
 
   // Game extension state
   const [isExtended, setIsExtended] = useState(false);
@@ -138,9 +188,10 @@ const TablePage = ({ params }) => {
 
   // Save to localStorage whenever data changes
   useEffect(() => {
-    localStorage.setItem(`game-${tableCode}-players`, JSON.stringify(players));
-    localStorage.setItem(`game-${tableCode}-history`, JSON.stringify(roundHistory));
-  }, [players, roundHistory, tableCode]);
+    if (!trimmedTableCode) return;
+    localStorage.setItem(`game-${trimmedTableCode}-players`, JSON.stringify(players));
+    localStorage.setItem(`game-${trimmedTableCode}-history`, JSON.stringify(roundHistory));
+  }, [players, roundHistory, trimmedTableCode]);
 
   // Handle input change for each player
   const handleInputChange = (playerId, value) => {
@@ -154,7 +205,7 @@ const TablePage = ({ params }) => {
     const winAmount = prize; // Full prize pool
 
     const gameData = {
-      tableCode,
+      tableCode: trimmedTableCode,
       author: gameSettings?.author || "Unknown",
       winner: {
         name: winnerData.name,
@@ -190,7 +241,7 @@ const TablePage = ({ params }) => {
   };
 
   // Handle plus button click - adds points for all players at once
-  const handleAddPoints = () => {
+  const handleAddPoints = async () => {
     // Check if at least one player has input
     const hasInput = players.some((player) => player.currentInput);
     if (!hasInput) {
@@ -216,6 +267,9 @@ const TablePage = ({ params }) => {
       return;
     }
 
+    // Show loading
+    setIsAddingPoints(true);
+
     // Prepare round data for API (needs userId instead of id)
     const table = localTableData || tableData?.data?.table;
     const roundDataForAPI = {
@@ -240,19 +294,30 @@ const TablePage = ({ params }) => {
       }))
     );
 
+    // Wait 1 second to show loading spinner
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // Save to API (totals and rounds will be updated from API refetch)
     addRoundMutation.mutate(
-      { gameId, roundData: roundDataForAPI, tableCode },
+      { gameId, roundData: roundDataForAPI, tableCode: trimmedTableCode },
       {
         onSuccess: (response) => {
           // Check if game is won (server handles winner detection)
           if (response.data?.game?.status === "completed") {
             const game = response.data.game;
 
-            if (game.winner) {
+            // Use ref for synchronous duplicate prevention
+            if (game.winner && !isCompletingRef.current && !showWinnerModal) {
+              // Set both ref (immediate) and state (for UI)
+              isCompletingRef.current = true;
+              setIsCompletingGame(true);
+              console.log("🏆 Game completed, finalizing winner...", game.id);
+
               // Call completeGame API to finalize the game and update balances
               completeGameMutation.mutate(game.id, {
                 onSuccess: async (completeResponse) => {
+                  console.log("✅ Game finalized successfully!");
+
                   // Refetch ALL players' profiles to get updated balances
                   if (currentUser) {
                     try {
@@ -294,6 +359,8 @@ const TablePage = ({ params }) => {
                 },
                 onError: (error) => {
                   console.error("❌ Error finalizing game:", error);
+                  isCompletingRef.current = false; // Reset ref
+                  setIsCompletingGame(false); // Reset state
                   // Still show winner modal even if finalization fails
                   setWinner({
                     name: game.winner.name,
@@ -303,7 +370,11 @@ const TablePage = ({ params }) => {
                   setShowWinnerModal(true);
                 },
               });
-            } else {
+            } else if (game.winner) {
+              console.log("⚠️ Duplicate complete game call blocked!", {
+                isCompletingRef: isCompletingRef.current,
+                showWinnerModal,
+              });
             }
           } else if (response.data?.game?.isExtended && response.data?.game?.winningThreshold === 1500) {
             // Game was extended (check isExtended flag instead of winningThresholdUpdated)
@@ -314,9 +385,13 @@ const TablePage = ({ params }) => {
           } else {
             console.log("ℹ️ Game still active, current threshold:", response.data?.game?.winningThreshold);
           }
+
+          // Hide loading
+          setIsAddingPoints(false);
         },
         onError: (error) => {
           console.error("Error saving round:", error);
+          setIsAddingPoints(false);
           alert("Failed to save round to database");
         },
       }
@@ -328,47 +403,76 @@ const TablePage = ({ params }) => {
 
   // Reset game after winner
   const handleResetGame = () => {
-    // Reset table status in database
-    resetTableMutation.mutate(tableCode, {
+    setIsResettingGame(true);
+
+    // Reset local state
+    const resetPlayers = players.map((player) => ({
+      ...player,
+      total: 0,
+      currentInput: "",
+    }));
+
+    setPlayers(resetPlayers);
+    setRoundHistory([]);
+    setWinner(null);
+    setShowWinnerModal(false);
+    setIsExtended(false);
+    setWinningThreshold(1000);
+    setGameStartAttempted(false); // Allow game to start again
+    isCompletingRef.current = false; // Reset ref
+    setIsCompletingGame(false); // Reset state
+
+    // Save reset players to localStorage (preserving names)
+    localStorage.setItem(`game-${trimmedTableCode}-players`, JSON.stringify(resetPlayers));
+    localStorage.removeItem(`game-${trimmedTableCode}-history`);
+
+    // Reset table status in backend (changes status from "completed" to "playing")
+    resetTableMutation.mutate(trimmedTableCode, {
       onSuccess: () => {
-        // console.log("✅ Table reset, starting new game...");
+        console.log("✅ Table status reset to 'playing'");
 
-        // Reset local state
-        // const resetPlayers = players.map((player) => ({
-        //   ...player,
-        //   total: 0,
-        //   currentInput: "",
-        // }));
-
-        setPlayers(resetPlayers);
-        setRoundHistory([]);
-        setWinner(null);
-        setShowWinnerModal(false);
-        setIsExtended(false);
-        setWinningThreshold(1000);
-        setGameStartAttempted(false); // Allow game to start again
-
-        // Save reset players to localStorage (preserving names)
-        localStorage.setItem(`game-${tableCode}-players`, JSON.stringify(resetPlayers));
-        localStorage.removeItem(`game-${tableCode}-history`);
-
-        // Start new game
-        // console.log("🎮 Starting new game...");
+        // Now start new game
         startGameMutation.mutate(
-          { tableCode },
+          { tableCode: trimmedTableCode },
           {
-            onSuccess: () => {
-              // console.log("✅ New game started!");
+            onSuccess: async () => {
+              console.log("✅ New game started successfully!");
+
+              // Wait a bit for database to commit, then refetch with retry logic
+              const maxRetries = 5;
+              let retryCount = 0;
+              let gameFound = false;
+
+              while (retryCount < maxRetries && !gameFound) {
+                await new Promise((resolve) => setTimeout(resolve, 500 * (retryCount + 1))); // Exponential delay
+                const result = await refetchGame();
+
+                if (result.data?.data?.game) {
+                  gameFound = true;
+                  console.log("✅ Game data refetched successfully!", result.data.data.game.id);
+                } else {
+                  retryCount++;
+                  console.log(`⚠️ Game not found yet, retrying... (${retryCount}/${maxRetries})`);
+                }
+              }
+
+              if (!gameFound) {
+                console.warn("⚠️ Game data not loaded after retries, but polling will continue");
+              }
+
+              setIsResettingGame(false);
             },
             onError: (error) => {
               console.error("❌ Failed to start new game:", error);
-              alert("Failed to start new game. Please refresh the page.");
+              setIsResettingGame(false);
+              alert("Failed to start new game. Please try again.");
             },
           }
         );
       },
       onError: (error) => {
         console.error("❌ Failed to reset table:", error);
+        setIsResettingGame(false);
         alert("Failed to reset table. Please try again.");
       },
     });
@@ -415,7 +519,7 @@ const TablePage = ({ params }) => {
 
     sendInvitation.mutate(
       {
-        tableCode,
+        tableCode: trimmedTableCode,
         fromUserId: currentUser.id,
         toPlayerId: invitePlayerId.trim(),
         position: selectedPosition,
@@ -482,7 +586,7 @@ const TablePage = ({ params }) => {
             <div>
               <h1 className="font-bold text-gray-900">Game Table</h1>
               <p className="text-gray-600 mt-1">
-                Table Code: <span className="font-mono font-semibold text-blue-600">{tableCode}</span>
+                Table Code: <span className="font-mono font-semibold text-blue-600">{trimmedTableCode}</span>
               </p>
               <div className="mt-2 flex gap-3 text-xs flex-wrap">
                 <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Prize: ₹{table.prize}</span>
@@ -550,7 +654,7 @@ const TablePage = ({ params }) => {
                       {/* Input */}
                       <div className="mb-1">
                         <div className="flex gap-2">
-                          <input type="number" value={player?.currentInput || ""} onChange={(e) => handleInputChange(position, e.target.value)} placeholder="Enter points" className="flex-1 px-2 py-2 border w-22 border-gray-300 rounded-md" />
+                          <input type="number" value={player?.currentInput || ""} onChange={(e) => handleInputChange(position, e.target.value)} placeholder="Enter points" disabled={showWinnerModal || isResettingGame || isCompletingGame} className="flex-1 px-2 py-2 border w-22 border-gray-300 rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed" />
                         </div>
                       </div>
                     </>
@@ -563,8 +667,15 @@ const TablePage = ({ params }) => {
           })}
         </div>
         <div className="flex items-center justify-center my-10">
-          <button onClick={handleAddPoints} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium">
-            +
+          <button onClick={handleAddPoints} disabled={showWinnerModal || isResettingGame || isCompletingGame || isAddingPoints} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {isAddingPoints ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              "+"
+            )}
           </button>
         </div>
 
@@ -633,8 +744,15 @@ const TablePage = ({ params }) => {
 
               {/* Footer */}
               <div className="mt-6">
-                <button onClick={handleResetGame} className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  Start New Game
+                <button onClick={handleResetGame} disabled={isResettingGame} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-gray-300 disabled:cursor-not-allowed">
+                  {isResettingGame ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Starting New Game...
+                    </>
+                  ) : (
+                    "Start New Game"
+                  )}
                 </button>
               </div>
             </div>

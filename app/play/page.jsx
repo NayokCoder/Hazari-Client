@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Button from "../(home)/wrapper";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useCreateTable } from "@/hooks/api/useTable";
+import { useCreateTable, useJoinTable } from "@/hooks/api/useTable";
 import { Loader2 } from "lucide-react";
 
 const PlayPage = () => {
@@ -12,7 +12,10 @@ const PlayPage = () => {
   const [user, setUser] = useState(null);
   const [matchFee, setMatchFee] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const [tableCode, setTableCode] = useState("");
   const createTable = useCreateTable();
+  const joinTable = useJoinTable();
 
   useEffect(() => {
     const currentUser = localStorage.getItem("hazari-current-user");
@@ -107,6 +110,74 @@ const PlayPage = () => {
     );
   };
 
+  const handleJoinTable = () => {
+    if (!tableCode || !tableCode.trim()) {
+      alert("Please enter a table code");
+      return;
+    }
+
+    // Validate and format table code
+    let trimmedCode = tableCode.trim().toUpperCase();
+
+    // If user only entered 6 digits, auto-add the HGS- prefix
+    if (/^\d{6}$/.test(trimmedCode)) {
+      trimmedCode = `HGS-${trimmedCode}`;
+      console.log("✅ Auto-added HGS- prefix:", trimmedCode);
+    }
+
+    const isValidFormat = /^HGS-\d{6}$/.test(trimmedCode);
+
+    if (!isValidFormat) {
+      alert(`Invalid table code format.\n\nYou entered: "${tableCode.trim()}"\n\nRequired format: HGS-XXXXXX or just 6 digits\nExamples:\n- HGS-123456\n- 123456 (HGS- will be added automatically)`);
+      return;
+    }
+
+    // Update the input field to show the formatted code
+    setTableCode(trimmedCode);
+
+    if (!user) {
+      alert("Please login first");
+      router.push("/auth/login");
+      return;
+    }
+
+    // Join table via API
+    joinTable.mutate(
+      {
+        tableCode: trimmedCode,
+        userId: user.id,
+      },
+      {
+        onSuccess: (data) => {
+          console.log("✅ Joined table successfully:", data);
+
+          // Save table to localStorage
+          localStorage.setItem(`table-${trimmedCode}`, JSON.stringify(data.data.table));
+
+          // Update user balance if returned
+          if (data.data.newBalance !== undefined) {
+            const updatedUser = { ...user, balance: data.data.newBalance };
+            localStorage.setItem("hazari-current-user", JSON.stringify(updatedUser));
+            setUser(updatedUser);
+
+            // Notify other components
+            window.dispatchEvent(new Event("userUpdated"));
+            console.log("💰 Balance updated after joining table:", data.data.newBalance);
+          }
+
+          // Close dialog and navigate
+          setIsJoinDialogOpen(false);
+          setTableCode("");
+          router.push(`/table/${trimmedCode}`);
+        },
+        onError: (error) => {
+          console.error("❌ Error joining table:", error);
+          alert(error.response?.data?.message || "Failed to join table");
+        },
+      }
+    );
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -176,9 +247,49 @@ const PlayPage = () => {
                 </DialogContent>
               </Dialog>
 
-              <Button variant="secondary" className="w-full sm:w-auto">
-                Join Table
-              </Button>
+              <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" className="w-full sm:w-auto">
+                    Join Table
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Join Existing Table</DialogTitle>
+                    <DialogDescription>Enter the table code to join an existing game.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    {/* Player Name Display */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">Your Name</label>
+                      <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{user.name}</div>
+                    </div>
+
+                    {/* Table Code Input */}
+                    <div className="space-y-2">
+                      <label htmlFor="tableCode" className="text-sm font-medium text-gray-700">
+                        Table Code
+                      </label>
+                      <input id="tableCode" type="text" placeholder="Enter 6 digits or HGS-XXXXXX" value={tableCode} onChange={(e) => setTableCode(e.target.value.toUpperCase())} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" maxLength={10} />
+                      <p className="text-xs text-gray-500">
+                        💡 Tip: You can enter just the 6 digits (e.g., 123456) and "HGS-" will be added automatically
+                      </p>
+                    </div>
+
+                    {/* Join Now Button */}
+                    <Button variant="primary" className="w-full mt-4" onClick={handleJoinTable} disabled={joinTable.isPending}>
+                      {joinTable.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Joining Table...
+                        </>
+                      ) : (
+                        "Join Now"
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </section>
