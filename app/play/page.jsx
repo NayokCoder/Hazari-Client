@@ -77,7 +77,6 @@ const PlayPage = () => {
     router.push(`/table/${tableCode}`);
 
     // Then create in database in background
-    console.log("Creating table in database...");
     createTable.mutate(
       {
         userId: user.id,
@@ -87,7 +86,6 @@ const PlayPage = () => {
       },
       {
         onSuccess: (data) => {
-          console.log("Table created in database:", data);
           // Update localStorage with database response
           localStorage.setItem(`table-${tableCode}`, JSON.stringify(data.data.table));
 
@@ -99,7 +97,6 @@ const PlayPage = () => {
 
             // Notify other components
             window.dispatchEvent(new Event("userUpdated"));
-            console.log("💰 Balance updated after creating table:", data.data.newBalance);
           }
         },
         onError: (error) => {
@@ -122,7 +119,6 @@ const PlayPage = () => {
     // If user only entered 6 digits, auto-add the HGS- prefix
     if (/^\d{6}$/.test(trimmedCode)) {
       trimmedCode = `HGS-${trimmedCode}`;
-      console.log("✅ Auto-added HGS- prefix:", trimmedCode);
     }
 
     const isValidFormat = /^HGS-\d{6}$/.test(trimmedCode);
@@ -149,8 +145,6 @@ const PlayPage = () => {
       },
       {
         onSuccess: (data) => {
-          console.log("✅ Joined table successfully:", data);
-
           // Save table to localStorage
           localStorage.setItem(`table-${trimmedCode}`, JSON.stringify(data.data.table));
 
@@ -162,7 +156,6 @@ const PlayPage = () => {
 
             // Notify other components
             window.dispatchEvent(new Event("userUpdated"));
-            console.log("💰 Balance updated after joining table:", data.data.newBalance);
           }
 
           // Close dialog and navigate

@@ -8,6 +8,7 @@ import StatsCard from "@/components/shared/StatsCard";
 import GameCard from "@/components/shared/GameCard";
 import UserAvatar from "@/components/shared/UserAvatar";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import LeaderboardSection from "@/components/Leaderboard/LeaderboardSection";
 import { useUserProfile, useWalletBalance } from "@/hooks/api";
 
 const DashboardPage = () => {
@@ -174,6 +175,11 @@ const DashboardPage = () => {
             <GamepadIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No recent games yet. Start playing to see your activity!</p>
           </div>
+        </motion.div>
+
+        {/* Leaderboard Section */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="mt-8">
+          <LeaderboardSection />
         </motion.div>
       </div>
     </div>

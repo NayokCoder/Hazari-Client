@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Gamepad2, DollarSign, Users, LogIn, UserPlus, Sparkles, Trophy, Clock } from "lucide-react";
+import LeaderboardSection from "@/components/Leaderboard/LeaderboardSection";
 
 const HomePage = () => {
   const router = useRouter();
@@ -157,6 +158,16 @@ const HomePage = () => {
               <p className="text-gray-600">{feature.desc}</p>
             </motion.div>
           ))}
+        </motion.div>
+
+        {/* Leaderboard Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.6, duration: 0.6 }}
+          className="mt-20"
+        >
+          <LeaderboardSection />
         </motion.div>
       </div>
 

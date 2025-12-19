@@ -46,8 +46,6 @@ const TablePage = ({ params }) => {
       router.push("/play");
       return;
     }
-
-    console.log("✅ Table code validated:", trimmedCode);
   }, [tableCode, router]);
 
   // Load table from localStorage first
@@ -105,7 +103,6 @@ const TablePage = ({ params }) => {
 
       // Auto-start game when table is full and game not started yet
       if (apiTable.players?.length === 4 && apiTable.status === "playing" && !gameData?.data?.game && !gameStartAttempted && !startGameMutation.isPending) {
-        console.log("Table is full, starting game...");
         setGameStartAttempted(true);
         startGameMutation.mutate({ tableCode: trimmedTableCode });
       }
@@ -147,11 +144,6 @@ const TablePage = ({ params }) => {
   useEffect(() => {
     if (gameData?.data?.game) {
       const game = gameData.data.game;
-      console.log("🎮 Game data from API:", game);
-      console.log(
-        "📊 Player scores:",
-        game.players.map((p) => ({ name: p.name, score: p.totalScore }))
-      );
 
       // Update players with scores from API, preserve current inputs
       setPlayers((prevPlayers) => {
@@ -165,7 +157,6 @@ const TablePage = ({ params }) => {
             isAuthor: p.isAuthor || false,
           };
         });
-        console.log("✅ Updated local players:", updatedPlayers);
         return updatedPlayers;
       });
 
@@ -181,8 +172,6 @@ const TablePage = ({ params }) => {
         author: game.tableCode,
         createdAt: game.createdAt,
       });
-
-      console.log("Game data loaded from API:", game);
     }
   }, [gameData]);
 
@@ -311,12 +300,10 @@ const TablePage = ({ params }) => {
               // Set both ref (immediate) and state (for UI)
               isCompletingRef.current = true;
               setIsCompletingGame(true);
-              console.log("🏆 Game completed, finalizing winner...", game.id);
 
               // Call completeGame API to finalize the game and update balances
               completeGameMutation.mutate(game.id, {
                 onSuccess: async (completeResponse) => {
-                  console.log("✅ Game finalized successfully!");
 
                   // Refetch ALL players' profiles to get updated balances
                   if (currentUser) {
@@ -339,14 +326,10 @@ const TablePage = ({ params }) => {
                         // Dispatch event to notify other components (like Header and Profile)
 
                         window.dispatchEvent(new Event("userUpdated"));
-                      } else {
-                        console.error("❌ Invalid user data response:", userData);
                       }
                     } catch (error) {
                       console.error("❌ Failed to refresh user profile:", error);
                     }
-                  } else {
-                    console.warn("⚠️ No currentUser found, cannot refresh profile");
                   }
 
                   // Show winner modal
@@ -370,11 +353,6 @@ const TablePage = ({ params }) => {
                   setShowWinnerModal(true);
                 },
               });
-            } else if (game.winner) {
-              console.log("⚠️ Duplicate complete game call blocked!", {
-                isCompletingRef: isCompletingRef.current,
-                showWinnerModal,
-              });
             }
           } else if (response.data?.game?.isExtended && response.data?.game?.winningThreshold === 1500) {
             // Game was extended (check isExtended flag instead of winningThresholdUpdated)
@@ -382,8 +360,6 @@ const TablePage = ({ params }) => {
             setIsExtended(true);
             setWinningThreshold(1500);
             alert("Match Extended! Two or more players reached 1000. New winning threshold: 1500 points!");
-          } else {
-            console.log("ℹ️ Game still active, current threshold:", response.data?.game?.winningThreshold);
           }
 
           // Hide loading
@@ -429,14 +405,11 @@ const TablePage = ({ params }) => {
     // Reset table status in backend (changes status from "completed" to "playing")
     resetTableMutation.mutate(trimmedTableCode, {
       onSuccess: () => {
-        console.log("✅ Table status reset to 'playing'");
-
         // Now start new game
         startGameMutation.mutate(
           { tableCode: trimmedTableCode },
           {
             onSuccess: async () => {
-              console.log("✅ New game started successfully!");
 
               // Wait a bit for database to commit, then refetch with retry logic
               const maxRetries = 5;
@@ -449,15 +422,9 @@ const TablePage = ({ params }) => {
 
                 if (result.data?.data?.game) {
                   gameFound = true;
-                  console.log("✅ Game data refetched successfully!", result.data.data.game.id);
                 } else {
                   retryCount++;
-                  console.log(`⚠️ Game not found yet, retrying... (${retryCount}/${maxRetries})`);
                 }
-              }
-
-              if (!gameFound) {
-                console.warn("⚠️ Game data not loaded after retries, but polling will continue");
               }
 
               setIsResettingGame(false);
@@ -489,7 +456,6 @@ const TablePage = ({ params }) => {
   // Handle edit button click
   const handleEdit = (playerId) => {
     // You can implement edit functionality here
-    console.log("Edit player:", playerId);
   };
 
   // Handle opening invite modal for a position
@@ -552,7 +518,6 @@ const TablePage = ({ params }) => {
     if (!currentUser || !table) return false;
     const authorId = typeof table.author === "object" ? table.author._id || table.author.id : table.author;
     const isTableAuthor = authorId?.toString() === currentUser.id;
-    console.log("isAuthor check:", { authorId, currentUserId: currentUser.id, isTableAuthor });
     return isTableAuthor;
   };
 

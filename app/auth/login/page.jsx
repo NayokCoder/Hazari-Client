@@ -48,7 +48,7 @@ const LoginPage = () => {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back Juaries</h1>
           <p className="text-gray-600">Login to your Hazari account</p>
         </div>
 
