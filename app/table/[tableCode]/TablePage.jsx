@@ -6,11 +6,13 @@ import { useTableDetails, useTableInvitations, useSendInvitation, useResetTable 
 import { useActiveGame, useStartGame, useAddRound, useEditRound, useCompleteGame } from "@/hooks/api/useGame";
 import { useIncrementRoundWins } from "@/hooks/api/useUser";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Send, Loader2, UserPlus, Crown, X } from "lucide-react";
+import { Users, Send, Loader2, UserPlus, Crown, X, Share2, Copy, Check, LogOut } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { ImUserTie } from "react-icons/im";
 import { SiGitextensions } from "react-icons/si";
 import { Atom, BlinkBlur, ThreeDot } from "react-loading-indicators";
+import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import { useToast } from "@/components/shared/Toast";
 
 const TablePage = ({ params }) => {
   const unwrappedParams = use(params);
@@ -18,8 +20,12 @@ const TablePage = ({ params }) => {
   const rawTableCode = unwrappedParams?.tableCode;
   const tableCode = rawTableCode ? decodeURIComponent(rawTableCode) : null;
   const router = useRouter();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState(null);
   const [localTableData, setLocalTableData] = useState(null);
+  const [shareCodeDialogOpen, setShareCodeDialogOpen] = useState(false);
+  const [leaveTableDialogOpen, setLeaveTableDialogOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Winner state (declared early to use in hooks)
   const [winner, setWinner] = useState(null);
@@ -315,13 +321,10 @@ const TablePage = ({ params }) => {
 
             // Player got 360 points (highest/perfect round)
             if (points === 360) {
-              console.log(`🎯 Player ${player.name} got 360 points! Updating profile...`);
               incrementRoundWinsMutation.mutate(
                 { userId: player.userId, type: "perfect_round" },
                 {
-                  onSuccess: () => {
-                    console.log(`✅ Perfect round win recorded for ${player.name}`);
-                  },
+                  onSuccess: () => {},
                   onError: (error) => {
                     console.error(`❌ Failed to record perfect round for ${player.name}:`, error);
                   },
@@ -331,13 +334,10 @@ const TablePage = ({ params }) => {
 
             // Player got 0 points (clean round/no tricks won)
             if (points === 0) {
-              console.log(`🎯 Player ${player.name} got 0 points! Updating profile...`);
               incrementRoundWinsMutation.mutate(
                 { userId: player.userId, type: "zero_round" },
                 {
-                  onSuccess: () => {
-                    console.log(`✅ Zero round win recorded for ${player.name}`);
-                  },
+                  onSuccess: () => {},
                   onError: (error) => {
                     console.error(`❌ Failed to record zero round for ${player.name}:`, error);
                   },
@@ -500,9 +500,28 @@ const TablePage = ({ params }) => {
 
   // Handle leave table
   const handleLeaveTable = () => {
-    const confirmLeave = window.confirm("Are you sure you want to leave the table?");
-    if (confirmLeave) {
-      router.push("/");
+    setLeaveTableDialogOpen(true);
+  };
+
+  const confirmLeaveTable = () => {
+    toast.info("Left the table");
+    router.push("/dashboard");
+  };
+
+  // Handle share code
+  const handleShareCode = () => {
+    setShareCodeDialogOpen(true);
+    setIsCopied(false);
+  };
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(trimmedTableCode);
+      setIsCopied(true);
+      toast.success("Table code copied to clipboard!");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy code");
     }
   };
 
@@ -681,8 +700,8 @@ const TablePage = ({ params }) => {
                 Table Code: <span className="font-mono font-semibold text-orange-400">{trimmedTableCode}</span>
               </p>
               <div className="mt-2 grid grid-cols-2 gap-3 text-xs ">
-                <span className="bg-orange-500/20 text-orange-400 px-2 py-1 rounded border border-orange-500/30">Prize: ₹{table.prize}</span>
-                <span className="bg-card/50 text-muted-foreground px-2 py-1 rounded border border-border">Fee: ₹{table.matchFee}</span>
+                <span className="bg-orange-500/20 text-orange-400 px-2 py-1 rounded border border-orange-500/30">Prize: ৳ {table.prize}</span>
+                <span className="bg-card/50 text-muted-foreground px-2 py-1 rounded border border-border">Fee: ৳ {table.matchFee}</span>
                 <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30">
                   Players: {table.players.length}/{table.maxPlayers}
                 </span>
@@ -694,9 +713,11 @@ const TablePage = ({ params }) => {
                 )}
               </div>
             </div>
-            <div className="space-y-5 flex flex-col w-4/12 text-xs">
-              <button className="px-2 py-1 bg-card/50 hover:bg-accent/50 rounded-lg font-medium text-foreground border border-border">Share Code</button>
-              <button onClick={handleLeaveTable} className="px-2 py-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium">
+            <div className="space-y-5 flex flex-col w-3/12 text-xs">
+              <button onClick={handleShareCode} className="px-2 py-1 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg">
+                Share Code
+              </button>
+              <button onClick={handleLeaveTable} className="px-2 py-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg">
                 Leave Table
               </button>
             </div>
@@ -874,8 +895,8 @@ const TablePage = ({ params }) => {
                 {gameSettings && (
                   <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4 text-center">
                     <p className="text-xs text-muted-foreground">You Won</p>
-                    <p className="text-3xl font-bold text-orange-400">₹{gameSettings.prize}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Prize Pool ₹{gameSettings.matchFee} × 4 players</p>
+                    <p className="text-3xl font-bold text-orange-400">৳ {gameSettings.prize}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Prize Pool ৳ {gameSettings.matchFee} × 4 players</p>
                   </div>
                 )}
               </div>
@@ -902,7 +923,7 @@ const TablePage = ({ params }) => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Invite Player to Position {selectedPosition}</DialogTitle>
-              <DialogDescription>Enter the 6-digit Player ID to send an invitation. Match Fee: ₹{table.matchFee}</DialogDescription>
+              <DialogDescription>Enter the 6-digit Player ID to send an invitation. Match Fee: ৳ {table.matchFee}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -916,11 +937,11 @@ const TablePage = ({ params }) => {
                 <p className="text-xs text-muted-foreground mb-1">Match Details</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-foreground">Match Fee:</span>
-                  <span className="font-semibold text-orange-400">₹{table.matchFee}</span>
+                  <span className="font-semibold text-orange-400">৳ {table.matchFee}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-foreground">Prize Pool:</span>
-                  <span className="font-semibold text-purple-400">₹{table.prize}</span>
+                  <span className="font-semibold text-purple-400">৳ {table.prize}</span>
                 </div>
               </div>
 
@@ -937,6 +958,50 @@ const TablePage = ({ params }) => {
                   </>
                 )}
               </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Leave Table Confirmation Dialog */}
+        <ConfirmDialog open={leaveTableDialogOpen} onOpenChange={setLeaveTableDialogOpen} title="Leave Table?" description="Are you sure you want to leave this table? You can rejoin using the table code." onConfirm={confirmLeaveTable} confirmText="Leave Table" cancelText="Stay" variant="danger" />
+
+        {/* Share Code Dialog */}
+        <Dialog open={shareCodeDialogOpen} onOpenChange={setShareCodeDialogOpen}>
+          <DialogContent className="glass-card border-purple-500/30">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-foreground">
+                <Share2 className="w-5 h-5 text-purple-400" />
+                Share Table Code
+              </DialogTitle>
+              <DialogDescription className="text-muted-foreground">Share this code with friends to invite them to your table</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Table Code Display */}
+              <div className="bg-gradient-to-r from-orange-500/10 to-purple-500/10 rounded-lg p-6 border border-orange-500/20">
+                <p className="text-sm text-muted-foreground mb-2 text-center">Table Code</p>
+                <p className="text-3xl font-bold text-center font-mono bg-gradient-to-r from-orange-400 to-purple-400 bg-clip-text text-transparent tracking-wider">{trimmedTableCode}</p>
+              </div>
+
+              {/* Copy Button */}
+              <button onClick={handleCopyCode} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-purple-600 text-white rounded-lg hover:from-orange-600 hover:to-purple-700 transition-all duration-200 font-semibold">
+                {isCopied ? (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-5 h-5" />
+                    Copy Code
+                  </>
+                )}
+              </button>
+
+              {/* Info Text */}
+              <div className="bg-card/50 rounded-lg p-3 border border-border">
+                <p className="text-xs text-muted-foreground text-center">Players can join by entering this code in the "Join Table" section on the dashboard</p>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

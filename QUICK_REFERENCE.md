@@ -144,6 +144,7 @@ const { data } = useRecentGames({ limit: 20 });
 ## 📊 Hook Response Pattern
 
 ### Queries (GET)
+
 ```jsx
 const { data, isLoading, error, isError, refetch } = useQueryHook(params);
 
@@ -154,6 +155,7 @@ const result = data?.data; // Access nested data
 ```
 
 ### Mutations (POST/PUT)
+
 ```jsx
 const mutation = useMutationHook();
 
@@ -167,9 +169,9 @@ mutation.mutate(data, {
 });
 
 // Status
-mutation.isPending  // true when loading
-mutation.isSuccess  // true when successful
-mutation.isError    // true when failed
+mutation.isPending; // true when loading
+mutation.isSuccess; // true when successful
+mutation.isError; // true when failed
 ```
 
 ---
@@ -177,27 +179,27 @@ mutation.isError    // true when failed
 ## 🎯 Common Patterns
 
 ### Get user balance and display
+
 ```jsx
 const { data, isLoading } = useWalletBalance(userId);
 
 if (isLoading) return <span>Loading...</span>;
 
-return <span>₹{data?.data?.balance || 0}</span>;
+return <span>৳ {data?.data?.balance || 0}</span>;
 ```
 
 ### Deposit with loading state
+
 ```jsx
 const deposit = useDeposit();
 
-<button
-  onClick={() => deposit.mutate({ userId, amount: 1000 })}
-  disabled={deposit.isPending}
->
-  {deposit.isPending ? "Depositing..." : "Deposit ₹1000"}
-</button>
+<button onClick={() => deposit.mutate({ userId, amount: 1000 })} disabled={deposit.isPending}>
+  {deposit.isPending ? "Depositing..." : "Deposit ৳ 1000"}
+</button>;
 ```
 
 ### Create table and redirect
+
 ```jsx
 const router = useRouter();
 const create = useCreateTable();
@@ -222,9 +224,7 @@ const handleCreate = () => {
 ```jsx
 const { data, refetch } = useWalletBalance(userId);
 
-<button onClick={() => refetch()}>
-  Refresh Balance
-</button>
+<button onClick={() => refetch()}>Refresh Balance</button>;
 ```
 
 ---

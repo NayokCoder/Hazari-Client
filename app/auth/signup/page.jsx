@@ -4,10 +4,14 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSignup } from "@/hooks/api";
+import { useToast } from "@/components/shared/Toast";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 const SignupPage = () => {
   const router = useRouter();
   const signup = useSignup();
+  const toast = useToast();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     mobileNumber: "",
@@ -25,13 +29,13 @@ const SignupPage = () => {
 
     // Validate inputs
     if (!formData.name || !formData.mobileNumber) {
-      alert("Please fill in all fields");
+      toast.warning("Please fill in all fields");
       return;
     }
 
     // Validate mobile number (11 digits)
     if (!/^\d{11}$/.test(formData.mobileNumber)) {
-      alert("Please enter a valid 11-digit mobile number");
+      toast.error("Please enter a valid 11-digit mobile number");
       return;
     }
 
@@ -43,19 +47,27 @@ const SignupPage = () => {
       },
       {
         onSuccess: (data) => {
-          console.log("Signup successful:", data);
           // Store user in localStorage for session management
           localStorage.setItem("hazari-current-user", JSON.stringify(data.data.user));
-          alert("Account created successfully!");
-          router.push("/dashboard");
+          // Notify header and other components about user update
+          window.dispatchEvent(new Event("userUpdated"));
+          toast.success("Account created successfully!");
+          setIsRedirecting(true);
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 500);
         },
         onError: (error) => {
           console.error("Signup error:", error);
-          alert(error.message || "Failed to create account. Mobile number may already exist.");
+          toast.error(error.message || "Failed to create account. Mobile number may already exist.");
         },
       }
     );
   };
+
+  if (isRedirecting) {
+    return <LoadingSpinner message="Creating your account..." />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-4">

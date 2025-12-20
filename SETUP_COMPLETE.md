@@ -18,6 +18,7 @@ Your Hazari client is now fully integrated with **Axios** and **TanStack Query**
 ## 📁 Files Created (20 files)
 
 ### API Services (`lib/api/`)
+
 1. **config.js** - API base URL and all endpoint paths
 2. **axios.js** - Configured Axios instance with interceptors
 3. **authService.js** - Signup, Login, Get current user
@@ -29,6 +30,7 @@ Your Hazari client is now fully integrated with **Axios** and **TanStack Query**
 9. **index.js** - Export all services
 
 ### React Query Hooks (`hooks/api/`)
+
 1. **useAuth.js** - Authentication hooks (useSignup, useLogin, useGetMe)
 2. **useUser.js** - User hooks (useUserProfile, useUserStats, useUpdateProfile)
 3. **useWallet.js** - Wallet hooks (useWalletBalance, useDeposit, useWithdraw, useTransactions)
@@ -38,17 +40,20 @@ Your Hazari client is now fully integrated with **Axios** and **TanStack Query**
 7. **index.js** - Export all hooks
 
 ### Configuration & Providers
+
 1. **providers/ReactQueryProvider.jsx** - TanStack Query setup
 2. **.env.local** - Environment variables (API_URL)
 3. **app/layout.js** - Updated with ReactQueryProvider
 
 ### Documentation
+
 1. **INTEGRATION_GUIDE.md** - Complete usage guide
 2. **README_API.md** - Quick overview
 3. **QUICK_REFERENCE.md** - Hook reference card
 4. **SETUP_COMPLETE.md** - This file
 
 ### Examples
+
 1. **components/examples/ExampleUsage.jsx** - Working demo component
 
 ---
@@ -56,17 +61,21 @@ Your Hazari client is now fully integrated with **Axios** and **TanStack Query**
 ## 🚀 How to Use
 
 ### 1. Start the Backend
+
 ```bash
 cd Server
 npm start
 ```
+
 Server runs on: http://localhost:5000
 
 ### 2. Start the Client
+
 ```bash
 cd Client
 npm run dev
 ```
+
 Client runs on: http://localhost:3000
 
 ### 3. Import and Use Hooks
@@ -82,19 +91,22 @@ export default function MyComponent() {
   const createTable = useCreateTable();
 
   const handleSignup = () => {
-    signup.mutate({
-      name: "John Doe",
-      mobileNumber: "1234567890"
-    }, {
-      onSuccess: (data) => {
-        console.log("User created:", data.data.user);
+    signup.mutate(
+      {
+        name: "John Doe",
+        mobileNumber: "1234567890",
+      },
+      {
+        onSuccess: (data) => {
+          console.log("User created:", data.data.user);
+        },
       }
-    });
+    );
   };
 
   return (
     <div>
-      <p>Balance: ₹{data?.data?.balance || 0}</p>
+      <p>Balance: ৳ {data?.data?.balance || 0}</p>
       <button onClick={handleSignup}>Sign Up</button>
     </div>
   );
@@ -106,22 +118,26 @@ export default function MyComponent() {
 ## 🎯 Available Hooks (30+ hooks)
 
 ### Authentication (3)
+
 - `useSignup()` - Register new user
 - `useLogin()` - Login with mobile number
 - `useGetMe(userId)` - Get current user data
 
 ### User Management (3)
+
 - `useUserProfile(userId)` - Get user profile
 - `useUserStats(userId)` - Get user statistics
 - `useUpdateProfile()` - Update user profile
 
 ### Wallet Operations (4)
+
 - `useWalletBalance(userId)` - Get wallet balance
 - `useDeposit()` - Deposit money
 - `useWithdraw()` - Withdraw money
 - `useTransactions(userId, params)` - Transaction history
 
 ### Table Management (5)
+
 - `useCreateTable()` - Create new game table
 - `useActiveTables(params)` - Get all active tables
 - `useTableDetails(tableCode)` - Get specific table
@@ -129,6 +145,7 @@ export default function MyComponent() {
 - `useLeaveTable()` - Leave a table
 
 ### Game Management (6)
+
 - `useStartGame()` - Start game session
 - `useGameDetails(gameId)` - Get game details
 - `useAddRound()` - Add game round
@@ -137,6 +154,7 @@ export default function MyComponent() {
 - `useActiveGame(tableCode)` - Get active game by table
 
 ### Leaderboard (3)
+
 - `useGlobalLeaderboard(params)` - Global rankings
 - `useUserRank(userId)` - Get user rank
 - `useRecentGames(params)` - Recent completed games
@@ -146,11 +164,13 @@ export default function MyComponent() {
 ## 🌐 API Configuration
 
 **Base URL:** Set in `.env.local`
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 **Endpoints:** All configured in `lib/api/config.js`
+
 - `/api/auth/*` - Authentication
 - `/api/users/*` - User management
 - `/api/wallet/*` - Wallet operations
@@ -184,23 +204,29 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 ## 🎨 Hook Pattern
 
 ### Queries (GET requests)
+
 ```jsx
 const { data, isLoading, error, isError, refetch } = useQueryHook(params);
 ```
 
 ### Mutations (POST/PUT requests)
+
 ```jsx
 const mutation = useMutationHook();
 
 mutation.mutate(data, {
-  onSuccess: (response) => { /* ... */ },
-  onError: (error) => { /* ... */ }
+  onSuccess: (response) => {
+    /* ... */
+  },
+  onError: (error) => {
+    /* ... */
+  },
 });
 
 // Check status
-mutation.isPending  // Loading
-mutation.isSuccess  // Success
-mutation.isError    // Error
+mutation.isPending; // Loading
+mutation.isSuccess; // Success
+mutation.isError; // Error
 ```
 
 ---
@@ -241,19 +267,19 @@ When you perform mutations, related queries are automatically refetched:
 useSignup().mutate({ name: "Test", mobileNumber: "1234567890" })
 
 // 2. Check balance (should be 0)
-useWalletBalance(userId) → ₹0
+useWalletBalance(userId) → ৳ 0
 
 // 3. Deposit money
 useDeposit().mutate({ userId, amount: 1000 })
 
 // 4. Check balance (should be 1000, auto-refreshed)
-useWalletBalance(userId) → ₹1000
+useWalletBalance(userId) → ৳ 1000
 
 // 5. Create table
 useCreateTable().mutate({ userId, matchFee: 100 })
 
 // 6. Check balance (should be 900, auto-refreshed)
-useWalletBalance(userId) → ₹900
+useWalletBalance(userId) → ৳ 900
 ```
 
 ---
@@ -261,6 +287,7 @@ useWalletBalance(userId) → ₹900
 ## 📦 Package.json
 
 Updated with:
+
 ```json
 {
   "dependencies": {
@@ -277,12 +304,14 @@ Updated with:
 ### Migration from localStorage:
 
 **Before:**
+
 ```jsx
 const user = JSON.parse(localStorage.getItem("hazari-current-user"));
 const balance = user.balance;
 ```
 
 **After:**
+
 ```jsx
 const { data } = useWalletBalance(userId);
 const balance = data?.data?.balance;
@@ -306,6 +335,7 @@ const balance = data?.data?.balance;
 **Lines of Code:** ~2,500+
 
 Your client is now **production-ready** with:
+
 - ✅ Complete API integration
 - ✅ Auto-caching & refetching
 - ✅ Loading & error states

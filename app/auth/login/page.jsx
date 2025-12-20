@@ -4,23 +4,27 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLogin } from "@/hooks/api";
+import { useToast } from "@/components/shared/Toast";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 
 const LoginPage = () => {
   const router = useRouter();
   const login = useLogin();
+  const toast = useToast();
   const [mobileNumber, setMobileNumber] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
 
     // Validate mobile number
     if (!mobileNumber) {
-      alert("Please enter your mobile number");
+      toast.warning("Please enter your mobile number");
       return;
     }
 
     if (!/^\d{11}$/.test(mobileNumber)) {
-      alert("Please enter a valid 11-digit mobile number");
+      toast.error("Please enter a valid 11-digit mobile number");
       return;
     }
 
@@ -29,23 +33,31 @@ const LoginPage = () => {
       { mobileNumber },
       {
         onSuccess: (data) => {
-          console.log("Login successful:", data);
           // Store user in localStorage for session management
           localStorage.setItem("hazari-current-user", JSON.stringify(data.data.user));
-          // alert(`Welcome back, ${data.data.user.name}!`);
-          router.push("/dashboard");
+          // Notify header and other components about user update
+          window.dispatchEvent(new Event("userUpdated"));
+          toast.success(`Welcome back, ${data.data.user.name}!`);
+          setIsRedirecting(true);
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 500);
         },
         onError: (error) => {
           console.error("Login error:", error);
-          alert(error.message || "Mobile number not found. Please create an account first.");
+          toast.error(error.message || "Mobile number not found. Please create an account first.");
         },
       }
     );
   };
 
+  if (isRedirecting) {
+    return <LoadingSpinner message="Logging you in..." />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-md glass-card rounded-2xl shadow-2xl p-8">
+      <div className="w-full max-w-md glass-card rounded-2xl shadow-2xl p-8 ">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-purple-600 bg-clip-text text-transparent mb-2">Welcome Back Juaries</h1>
@@ -59,7 +71,7 @@ const LoginPage = () => {
             <label htmlFor="mobileNumber" className="block text-sm font-medium text-foreground mb-2">
               Mobile Number
             </label>
-            <input type="tel" id="mobileNumber" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Enter your mobile number" maxLength="11" className="w-full px-4 py-3 border border-border bg-card rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <input type="tel" id="mobileNumber" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Enter your mobile number" maxLength="11" className="w-full px-4 py-3 border border-border bg-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
 
           {/* Submit Button */}
@@ -79,7 +91,7 @@ const LoginPage = () => {
         </div>
 
         {/* User Info Display (for testing) */}
-        <div className="mt-8 p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-border/20">
+        <div className="mt-8 p-4 bg-border backdrop-blur-sm rounded-lg border border-border/20">
           <p className="text-xs text-muted-foreground text-center">Your account stores: Name, Mobile, Balance, Games Won & Played</p>
         </div>
       </div>

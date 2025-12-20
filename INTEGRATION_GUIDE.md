@@ -40,6 +40,7 @@ Client/
 ### 1. Environment Setup
 
 Your `.env.local` file:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
@@ -110,9 +111,9 @@ export default function WalletPage({ userId }) {
 
   return (
     <div>
-      <h2>Balance: ₹{balanceData?.data?.balance || 0}</h2>
+      <h2>Balance: ৳ {balanceData?.data?.balance || 0}</h2>
       <button onClick={handleDeposit} disabled={deposit.isPending}>
-        {deposit.isPending ? "Depositing..." : "Deposit ₹1000"}
+        {deposit.isPending ? "Depositing..." : "Deposit ৳ 1000"}
       </button>
     </div>
   );
@@ -148,7 +149,7 @@ export default function CreateTableButton({ userId }) {
 
   return (
     <button onClick={handleCreate} disabled={createTable.isPending}>
-      {createTable.isPending ? "Creating..." : "Create Table (₹100)"}
+      {createTable.isPending ? "Creating..." : "Create Table (৳ 100)"}
     </button>
   );
 }
@@ -171,7 +172,7 @@ export default function UserStatsCard({ userId }) {
 
   return (
     <div>
-      <p>Balance: ₹{stats.balance}</p>
+      <p>Balance: ৳ {stats.balance}</p>
       <p>Games Won: {stats.gamesWon}</p>
       <p>Games Played: {stats.gamesPlayed}</p>
       <p>Win Rate: {stats.winRate}%</p>
@@ -204,7 +205,7 @@ export default function LeaderboardPage() {
         <div key={player.userId}>
           <span>#{player.rank}</span>
           <span>{player.name}</span>
-          <span>₹{player.totalWinnings}</span>
+          <span>৳ {player.totalWinnings}</span>
         </div>
       ))}
     </div>
@@ -217,22 +218,26 @@ export default function LeaderboardPage() {
 ## 🔥 Available Hooks
 
 ### Authentication
+
 - `useSignup()` - Register new user
 - `useLogin()` - Login user
 - `useGetMe(userId)` - Get current user
 
 ### User
+
 - `useUserProfile(userId)` - Get user profile
 - `useUserStats(userId)` - Get user statistics
 - `useUpdateProfile()` - Update profile
 
 ### Wallet
+
 - `useWalletBalance(userId)` - Get wallet balance
 - `useDeposit()` - Deposit money
 - `useWithdraw()` - Withdraw money
 - `useTransactions(userId, params)` - Get transaction history
 
 ### Table
+
 - `useCreateTable()` - Create new table
 - `useActiveTables(params)` - Get active tables
 - `useTableDetails(tableCode)` - Get table details
@@ -240,6 +245,7 @@ export default function LeaderboardPage() {
 - `useLeaveTable()` - Leave table
 
 ### Game
+
 - `useStartGame()` - Start game
 - `useGameDetails(gameId)` - Get game details
 - `useAddRound()` - Add round
@@ -248,6 +254,7 @@ export default function LeaderboardPage() {
 - `useActiveGame(tableCode)` - Get active game
 
 ### Leaderboard
+
 - `useGlobalLeaderboard(params)` - Get leaderboard
 - `useUserRank(userId)` - Get user rank
 - `useRecentGames(params)` - Get recent games
@@ -257,23 +264,29 @@ export default function LeaderboardPage() {
 ## 📊 Hook Patterns
 
 ### Queries (GET requests)
+
 ```jsx
 const { data, isLoading, error, refetch } = useHookName(params);
 ```
 
 ### Mutations (POST/PUT requests)
+
 ```jsx
 const mutation = useMutationHook();
 
 mutation.mutate(data, {
-  onSuccess: (data) => { /* ... */ },
-  onError: (error) => { /* ... */ }
+  onSuccess: (data) => {
+    /* ... */
+  },
+  onError: (error) => {
+    /* ... */
+  },
 });
 
 // Check status
-mutation.isPending
-mutation.isSuccess
-mutation.isError
+mutation.isPending;
+mutation.isSuccess;
+mutation.isError;
 ```
 
 ---
@@ -281,11 +294,13 @@ mutation.isError
 ## 🎯 Migration from localStorage
 
 ### Before (localStorage):
+
 ```jsx
 const user = JSON.parse(localStorage.getItem("hazari-current-user"));
 ```
 
 ### After (API):
+
 ```jsx
 const { data } = useUserProfile(userId);
 const user = data?.data?.user;
@@ -296,17 +311,19 @@ const user = data?.data?.user;
 ## 🔄 Auto-Refetching
 
 TanStack Query automatically refetches data when:
+
 - Component mounts
 - Window refocuses (disabled in our config)
 - Network reconnects
 - You call `refetch()`
 
 Manual refetch:
+
 ```jsx
 const { data, refetch } = useWalletBalance(userId);
 
 // Refetch manually
-<button onClick={() => refetch()}>Refresh Balance</button>
+<button onClick={() => refetch()}>Refresh Balance</button>;
 ```
 
 ---
@@ -334,7 +351,7 @@ const mutation = useMutationHook();
 mutation.mutate(data, {
   onError: (error) => {
     alert(error.message || "Something went wrong");
-  }
+  },
 });
 ```
 
@@ -343,6 +360,7 @@ mutation.mutate(data, {
 ## 🔐 Important Notes
 
 1. **User ID Storage**: Store user ID in localStorage after login/signup:
+
    ```jsx
    localStorage.setItem("hazari-current-user", JSON.stringify(user));
    ```
@@ -350,6 +368,7 @@ mutation.mutate(data, {
 2. **Server Must Be Running**: Make sure the backend is running on `http://localhost:5000`
 
 3. **Query Keys**: Each query has a unique key for caching:
+
    - `["user", "profile", userId]`
    - `["wallet", "balance", userId]`
    - `["table", tableCode]`
@@ -361,18 +380,21 @@ mutation.mutate(data, {
 ## 🧪 Testing the Integration
 
 1. **Start the server:**
+
    ```bash
    cd Server
    npm start
    ```
 
 2. **Start the client:**
+
    ```bash
    cd Client
    npm run dev
    ```
 
 3. **Test signup:**
+
    - Use `useSignup()` hook
    - Check if user is created in MongoDB
    - Verify localStorage is updated
@@ -386,6 +408,7 @@ mutation.mutate(data, {
 ## 📚 Example Component
 
 See `components/examples/` for full working examples of:
+
 - Authentication flow
 - Wallet operations
 - Table creation & joining

@@ -222,7 +222,7 @@ const PlayPage = () => {
                         Match Fee
                       </label>
                       <input id="matchFee" type="number" placeholder="Enter match fee" value={matchFee} onChange={(e) => setMatchFee(e.target.value)} className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                      {matchFee && <p className="text-xs text-muted-foreground">Total Prize: ₹{parseFloat(matchFee) * 4}</p>}
+                      {matchFee && <p className="text-xs text-muted-foreground">Total Prize: ৳ {parseFloat(matchFee) * 4}</p>}
                     </div>
 
                     {/* Start Now Button */}

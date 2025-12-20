@@ -3,10 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import { useToast } from "@/components/shared/Toast";
 
 const ProfilePage = () => {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
 
   useEffect(() => {
     // Load current user
@@ -14,7 +18,6 @@ const ProfilePage = () => {
       const currentUser = localStorage.getItem("hazari-current-user");
       if (currentUser) {
         setUser(JSON.parse(currentUser));
-        console.log("👤 Profile: User data loaded/refreshed");
       } else {
         // Redirect to login if no user logged in
         router.push("/auth/login");
@@ -25,7 +28,6 @@ const ProfilePage = () => {
 
     // Listen for user updates (e.g., after game completion)
     const handleUserUpdate = () => {
-      console.log("🔄 Profile: User data updated, refreshing...");
       loadUser();
     };
 
@@ -37,11 +39,13 @@ const ProfilePage = () => {
   }, [router]);
 
   const handleLogout = () => {
-    const confirmLogout = window.confirm("Are you sure you want to logout?");
-    if (confirmLogout) {
-      localStorage.removeItem("hazari-current-user");
-      router.push("/auth/login");
-    }
+    setLogoutDialogOpen(true);
+  };
+
+  const confirmLogout = () => {
+    localStorage.removeItem("hazari-current-user");
+    toast.success("Logged out successfully!");
+    router.push("/auth/login");
   };
 
   if (!user) {
@@ -85,7 +89,7 @@ const ProfilePage = () => {
               {/* Balance */}
               <div className="bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-orange-500/20">
                 <p className="text-xs text-muted-foreground mb-1">Balance</p>
-                <p className="text-2xl font-bold text-orange-400">₹{user.balance}</p>
+                <p className="text-2xl font-bold text-orange-400">৳ {user.balance}</p>
               </div>
 
               {/* Games Won */}
@@ -115,7 +119,7 @@ const ProfilePage = () => {
               {/* Total Winnings */}
               <div className="bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-orange-500/20 col-span-full">
                 <p className="text-xs text-muted-foreground mb-1">Total Winnings</p>
-                <p className="text-3xl font-bold text-orange-400">₹{user.totalWinnings}</p>
+                <p className="text-3xl font-bold text-orange-400">৳ {user.totalWinnings}</p>
               </div>
             </div>
           </div>
@@ -131,7 +135,7 @@ const ProfilePage = () => {
             </div>
             <div className="text-center p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-orange-500/20">
               <p className="text-sm text-muted-foreground">Avg. Winnings</p>
-              <p className="text-2xl font-bold text-orange-400">₹{user.gamesWon > 0 ? (user.totalWinnings / user.gamesWon).toFixed(0) : 0}</p>
+              <p className="text-2xl font-bold text-orange-400">৳ {user.gamesWon > 0 ? (user.totalWinnings / user.gamesWon).toFixed(0) : 0}</p>
             </div>
             <div className="text-center p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-border/20">
               <p className="text-sm text-muted-foreground">Member Since</p>
@@ -144,6 +148,18 @@ const ProfilePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        onOpenChange={setLogoutDialogOpen}
+        title="Confirm Logout"
+        description="Are you sure you want to logout? You will need to login again to access your account."
+        onConfirm={confirmLogout}
+        confirmText="Logout"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

@@ -36,16 +36,10 @@ export const Balance = () => {
               <p className="text-gray-600 text-sm">Login or create an account to start playing</p>
             </div>
             <div className="flex gap-3">
-              <Link
-                href="/auth/login"
-                className="px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition shadow-lg"
-              >
+              <Link href="/auth/login" className="px-6 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition shadow-lg">
                 Login
               </Link>
-              <Link
-                href="/auth/signup"
-                className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition shadow-lg"
-              >
+              <Link href="/auth/signup" className="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold transition shadow-lg">
                 Sign Up
               </Link>
             </div>
@@ -72,23 +66,17 @@ export const Balance = () => {
           <div className="flex items-center gap-4">
             <div className="bg-white rounded-lg px-6 py-3 shadow-lg">
               <p className="text-xs text-gray-500">Balance</p>
-              <p className="text-2xl font-bold text-green-600">₹{user.balance}</p>
+              <p className="text-2xl font-bold text-green-600">৳ {user.balance}</p>
             </div>
             <div className="bg-white rounded-lg px-6 py-3 shadow-lg">
               <p className="text-xs text-gray-500">Games Won</p>
               <p className="text-2xl font-bold text-blue-600">{user.gamesWon}</p>
             </div>
             <div className="flex gap-2">
-              <Link
-                href="/profile"
-                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition"
-              >
+              <Link href="/profile" className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition">
                 Profile
               </Link>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
-              >
+              <button onClick={handleLogout} className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition">
                 Logout
               </button>
             </div>
