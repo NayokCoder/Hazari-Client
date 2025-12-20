@@ -58,43 +58,43 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-md glass-card rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600">Join Hazari and start playing</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-purple-600 bg-clip-text text-transparent mb-2">Create Account</h1>
+          <p className="text-muted-foreground">Join Hazari and start playing</p>
         </div>
 
         {/* Signup Form */}
         <form onSubmit={handleSignup} className="space-y-6">
           {/* Name Input */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
               Full Name
             </label>
-            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Enter your full name" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="text" id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Enter your full name" className="w-full px-4 py-3 border border-border bg-card rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
 
           {/* Mobile Number Input */}
           <div>
-            <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="mobileNumber" className="block text-sm font-medium text-foreground mb-2">
               Mobile Number
             </label>
-            <input type="tel" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} placeholder="Enter 11-digit mobile number" maxLength="11" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="tel" id="mobileNumber" name="mobileNumber" value={formData.mobileNumber} onChange={handleChange} placeholder="Enter 11-digit mobile number" maxLength="11" className="w-full px-4 py-3 border border-border bg-card rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
 
           {/* Submit Button */}
-          <button type="submit" disabled={signup.isPending} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button type="submit" disabled={signup.isPending} className="w-full bg-gradient-to-r from-purple-500 to-purple-700 hover:from-purple-600 hover:to-purple-800 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
             {signup.isPending ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 
         {/* Login Link */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+            <Link href="/auth/login" className="text-purple-400 hover:text-purple-500 font-semibold">
               Login here
             </Link>
           </p>

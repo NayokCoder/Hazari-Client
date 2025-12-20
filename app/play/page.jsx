@@ -180,20 +180,20 @@ const PlayPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <section className="flex items-center justify-center min-h-[60vh] px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg text-center">
+          <div className="w-full max-w-md rounded-2xl glass-card p-8 shadow-2xl text-center">
             {/* Title */}
-            <h2 className="text-2xl font-bold text-gray-900">Start Playing</h2>
+            <h2 className="text-3xl font-bold text-foreground">Start Playing</h2>
 
             {/* Subtitle */}
-            <p className="mt-2 text-sm text-gray-500">Create a new table or join an existing one</p>
+            <p className="mt-2 text-sm text-muted-foreground">Create a new table or join an existing one</p>
 
             {/* User Info */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-gray-600">Playing as</p>
-              <p className="text-lg font-semibold text-blue-600">{user.name}</p>
+            <div className="mt-4 p-3 bg-card/50 backdrop-blur-sm rounded-lg border border-orange-500/20">
+              <p className="text-xs text-muted-foreground">Playing as</p>
+              <p className="text-lg font-semibold text-orange-400">{user.name}</p>
             </div>
 
             {/* Buttons */}
@@ -212,17 +212,17 @@ const PlayPage = () => {
                   <div className="space-y-4 py-4">
                     {/* Player Name Display */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Your Name</label>
-                      <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{user.name}</div>
+                      <label className="text-sm font-medium text-foreground">Your Name</label>
+                      <div className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">{user.name}</div>
                     </div>
 
                     {/* Match Fee Input */}
                     <div className="space-y-2">
-                      <label htmlFor="matchFee" className="text-sm font-medium text-gray-700">
+                      <label htmlFor="matchFee" className="text-sm font-medium text-foreground">
                         Match Fee
                       </label>
-                      <input id="matchFee" type="number" placeholder="Enter match fee" value={matchFee} onChange={(e) => setMatchFee(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                      {matchFee && <p className="text-xs text-gray-500">Total Prize: ₹{parseFloat(matchFee) * 4}</p>}
+                      <input id="matchFee" type="number" placeholder="Enter match fee" value={matchFee} onChange={(e) => setMatchFee(e.target.value)} className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                      {matchFee && <p className="text-xs text-muted-foreground">Total Prize: ₹{parseFloat(matchFee) * 4}</p>}
                     </div>
 
                     {/* Start Now Button */}
@@ -254,19 +254,17 @@ const PlayPage = () => {
                   <div className="space-y-4 py-4">
                     {/* Player Name Display */}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700">Your Name</label>
-                      <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">{user.name}</div>
+                      <label className="text-sm font-medium text-foreground">Your Name</label>
+                      <div className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">{user.name}</div>
                     </div>
 
                     {/* Table Code Input */}
                     <div className="space-y-2">
-                      <label htmlFor="tableCode" className="text-sm font-medium text-gray-700">
+                      <label htmlFor="tableCode" className="text-sm font-medium text-foreground">
                         Table Code
                       </label>
-                      <input id="tableCode" type="text" placeholder="Enter 6 digits or HGS-XXXXXX" value={tableCode} onChange={(e) => setTableCode(e.target.value.toUpperCase())} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" maxLength={10} />
-                      <p className="text-xs text-gray-500">
-                        💡 Tip: You can enter just the 6 digits (e.g., 123456) and "HGS-" will be added automatically
-                      </p>
+                      <input id="tableCode" type="tel" placeholder="Enter 6 digits or HGS-XXXXXX" value={tableCode} onChange={(e) => setTableCode(e.target.value.toUpperCase())} className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono" maxLength={10} />
+                      <p className="text-xs text-muted-foreground">💡 Tip: You can enter just the 6 digits (e.g., 123456) and "HGS-" will be added automatically</p>
                     </div>
 
                     {/* Join Now Button */}

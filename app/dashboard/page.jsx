@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Wallet, Trophy, GamepadIcon, TrendingUp, Play, User, Sparkles } from "lucide-react";
+import { Wallet, Trophy, GamepadIcon, TrendingUp, Play, User, Sparkles, Target, Award } from "lucide-react";
 import StatsCard from "@/components/shared/StatsCard";
 import GameCard from "@/components/shared/GameCard";
 import UserAvatar from "@/components/shared/UserAvatar";
@@ -46,8 +46,23 @@ const DashboardPage = () => {
   }, [router]);
 
   // Fetch user profile and wallet balance from API
-  const { data: profileData, isLoading: profileLoading } = useUserProfile(userId);
-  const { data: walletData, isLoading: walletLoading } = useWalletBalance(userId);
+  const { data: profileData, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile(userId);
+  const { data: walletData, isLoading: walletLoading, refetch: refetchWallet } = useWalletBalance(userId);
+
+  // Listen for user data updates (e.g., after round wins are recorded)
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      console.log("🔄 Dashboard: User data updated, refreshing...");
+      refetchProfile();
+      refetchWallet();
+    };
+
+    window.addEventListener("userUpdated", handleUserUpdate);
+
+    return () => {
+      window.removeEventListener("userUpdated", handleUserUpdate);
+    };
+  }, [refetchProfile, refetchWallet]);
 
   const isLoading = profileLoading || walletLoading;
   const user = profileData?.data?.user;
@@ -100,29 +115,29 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Welcome Section */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-xl p-8 mb-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full blur-3xl opacity-30 -mr-32 -mt-32"></div>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="glass-card rounded-2xl shadow-xl p-8 mb-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-orange-500/10 to-purple-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
           <div className="relative flex items-center gap-6">
             <UserAvatar name={user.name} size="xl" showOnline={true} />
             <div className="flex-1">
-              <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="text-4xl font-bold text-foreground mb-2 flex items-center gap-2">
                 Welcome back, {user.name}!
-                <Sparkles className="w-8 h-8 text-yellow-500" />
+                <Sparkles className="w-8 h-8 text-orange-400" />
               </motion.h1>
-              <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="text-gray-600 text-lg">
+              <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="text-muted-foreground text-lg">
                 Ready to dominate some Hazari games?
               </motion.p>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-3 flex items-center gap-4">
-                <div className="px-4 py-2 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg">
-                  <p className="text-xs text-gray-600">Win Rate</p>
-                  <p className="text-lg font-bold text-green-600">{winRate}%</p>
+                <div className="px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-orange-500/20">
+                  <p className="text-xs text-muted-foreground">Win Rate</p>
+                  <p className="text-lg font-bold text-orange-400">{winRate}%</p>
                 </div>
-                <div className="px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-                  <p className="text-xs text-gray-600">Player ID</p>
-                  <p className="text-xl font-mono font-bold text-purple-600">{user.playerId}</p>
+                <div className="px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-purple-500/20">
+                  <p className="text-xs text-muted-foreground">Player ID</p>
+                  <p className="text-xl font-mono font-bold text-purple-400">{user.playerId}</p>
                 </div>
               </motion.div>
             </div>
@@ -130,16 +145,18 @@ const DashboardPage = () => {
         </motion.div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard icon={Wallet} label="Balance" value={`₹${balance ?? 0}`} color="green" delay={0.1} />
-          <StatsCard icon={Trophy} label="Games Won" value={user.gamesWon} color="blue" delay={0.2} />
-          <StatsCard icon={GamepadIcon} label="Games Played" value={user.gamesPlayed} color="purple" delay={0.3} />
-          <StatsCard icon={TrendingUp} label="Total Winnings" value={`₹${user.totalWinnings}`} color="orange" delay={0.4} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <StatsCard icon={Wallet} label="Balance" value={`₹${balance ?? 0}`} color="orange" delay={0.1} />
+          <StatsCard icon={Trophy} label="Games Won" value={user.gamesWon} color="purple" delay={0.2} />
+          <StatsCard icon={GamepadIcon} label="Games Played" value={user.gamesPlayed} color="gray" delay={0.3} />
+          <StatsCard icon={TrendingUp} label="Total Winnings" value={`₹${user.totalWinnings}`} color="black" delay={0.4} />
+          <StatsCard icon={Sparkles} label="Perfect Rounds" value={user.perfectRounds || 0} color="orange" delay={0.5} />
+          <StatsCard icon={Target} label="Zero Rounds" value={user.zeroRounds || 0} color="purple" delay={0.6} />
         </div>
 
         {/* Active Table Alert */}
         {activeTable && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 rounded-2xl shadow-xl p-6 mb-8 text-white">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl shadow-xl p-6 mb-8 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
@@ -152,7 +169,7 @@ const DashboardPage = () => {
                   </p>
                 </div>
               </div>
-              <button onClick={() => router.push(`/table/${activeTable.tableCode}`)} className="px-6 py-3 bg-white text-red-600 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl">
+              <button onClick={() => router.push(`/table/${activeTable.tableCode}`)} className="px-6 py-3 bg-white text-orange-600 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl">
                 Continue Playing →
               </button>
             </div>
@@ -161,19 +178,19 @@ const DashboardPage = () => {
 
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <GameCard icon={Play} title="Start Playing" description="Create or join a game table" href="/play" gradient="from-green-500 via-emerald-500 to-teal-600" delay={0.6} />
-            <GameCard icon={User} title="View Profile" description="Check your stats and achievements" href="/profile" gradient="from-blue-500 via-indigo-500 to-purple-600" delay={0.7} />
+            <GameCard icon={Play} title="Start Playing" description="Create or join a game table" href="/play" gradient="from-orange-500 to-purple-600" delay={0.6} />
+            <GameCard icon={User} title="View Profile" description="Check your stats and achievements" href="/profile" gradient="from-purple-500 to-purple-700" delay={0.7} />
           </div>
         </motion.div>
 
         {/* Recent Activity Section */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="mt-8 bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Recent Activity</h2>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="mt-8 glass-card rounded-2xl shadow-xl p-6">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Recent Activity</h2>
           <div className="text-center py-12">
-            <GamepadIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No recent games yet. Start playing to see your activity!</p>
+            <GamepadIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">No recent games yet. Start playing to see your activity!</p>
           </div>
         </motion.div>
 

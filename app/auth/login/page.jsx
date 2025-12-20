@@ -44,43 +44,43 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-4">
+      <div className="w-full max-w-md glass-card rounded-2xl shadow-2xl p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back Juaries</h1>
-          <p className="text-gray-600">Login to your Hazari account</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-purple-600 bg-clip-text text-transparent mb-2">Welcome Back Juaries</h1>
+          <p className="text-muted-foreground">Login to your Hazari account</p>
         </div>
 
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-6">
           {/* Mobile Number Input */}
           <div>
-            <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="mobileNumber" className="block text-sm font-medium text-foreground mb-2">
               Mobile Number
             </label>
-            <input type="tel" id="mobileNumber" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Enter your mobile number" maxLength="11" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="tel" id="mobileNumber" value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="Enter your mobile number" maxLength="11" className="w-full px-4 py-3 border border-border bg-card rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
 
           {/* Submit Button */}
-          <button type="submit" disabled={login.isPending} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          <button type="submit" disabled={login.isPending} className="w-full bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
             {login.isPending ? "Logging in..." : "Login"}
           </button>
         </form>
 
         {/* Signup Link */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-semibold">
+            <Link href="/auth/signup" className="text-orange-400 hover:text-orange-500 font-semibold">
               Create one here
             </Link>
           </p>
         </div>
 
         {/* User Info Display (for testing) */}
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-600 text-center">Your account stores: Name, Mobile, Balance, Games Won & Played</p>
+        <div className="mt-8 p-4 bg-card/50 backdrop-blur-sm rounded-lg border border-border/20">
+          <p className="text-xs text-muted-foreground text-center">Your account stores: Name, Mobile, Balance, Games Won & Played</p>
         </div>
       </div>
     </div>

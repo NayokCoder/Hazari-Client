@@ -47,6 +47,25 @@ export const useAddRound = () => {
   });
 };
 
+// Edit round
+export const useEditRound = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ gameId, roundNumber, roundData, tableCode }) => gameService.editRound(gameId, roundNumber, roundData),
+    onSuccess: (data, variables) => {
+      console.log("Round edited successfully:", data);
+      // Invalidate both the game ID query and the active game query
+      queryClient.invalidateQueries({ queryKey: ["game", variables.gameId] });
+      queryClient.invalidateQueries({ queryKey: ["game", "active", variables.tableCode] });
+      queryClient.invalidateQueries({ queryKey: ["game", "active"] });
+    },
+    onError: (error) => {
+      console.error("Edit round error:", error);
+    },
+  });
+};
+
 // Complete game
 export const useCompleteGame = () => {
   const queryClient = useQueryClient();

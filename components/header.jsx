@@ -58,27 +58,21 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: "/dashboard", label: "Home", icon: Home },
+    // { href: "/dashboard", label: "Home", icon: Home },
     { href: "/play", label: "Play", icon: Play },
     { href: "/profile", label: "Profile", icon: User },
   ];
 
   return (
-    <header className="bg-white/80 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-100">
+    <header className="glass-effect shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo Section */}
           <Link href="/dashboard" className="flex items-center gap-3 group">
-            <motion.div
-              whileHover={{ rotate: 360, scale: 1.1 }}
-              transition={{ duration: 0.6 }}
-              className="w-10 h-10 bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg"
-            >
+            <motion.div whileHover={{ rotate: 360, scale: 1.1 }} transition={{ duration: 0.6 }} className="w-10 h-10 bg-gradient-to-br from-orange-500 via-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <Gamepad2 className="w-6 h-6 text-white" />
             </motion.div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Hazari
-            </span>
+            <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-purple-600 bg-clip-text text-transparent">Hazari</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -86,15 +80,7 @@ export function Header() {
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-blue-600"
-                  }`}
-                >
+                <Link key={link.href} href={link.href} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${isActive ? "bg-gradient-to-r from-orange-500 to-purple-600 text-white shadow-lg" : "text-foreground/80 hover:bg-accent/50 hover:text-orange-400"}`}>
                   <link.icon className="w-4 h-4" />
                   <span>{link.label}</span>
                 </Link>
@@ -105,63 +91,47 @@ export function Header() {
           {/* User Section - Desktop */}
           <div className="hidden md:flex items-center gap-4">
             {/* Balance Display */}
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-              <Wallet className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-semibold text-green-700">₹{user.balance}</span>
+            <div className="flex items-center gap-2 px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-orange-500/30">
+              <Wallet className="w-4 h-4 text-orange-400" />
+              <span className="text-sm font-semibold text-orange-400">₹{user.balance}</span>
             </div>
 
             {/* Invitation Notifications */}
             <InvitationNotifications playerId={user.playerId} />
 
             {/* User Info */}
-            <Link
-              href="/profile"
-              className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg transition-all group"
-            >
+            <Link href="/profile" className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 rounded-lg transition-all group">
               <UserAvatar name={user.name} size="sm" showOnline={true} />
               <div className="text-left">
-                <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {user.name}
-                </p>
-                <p className="text-xs text-gray-500">View Profile</p>
+                <p className="text-sm font-semibold text-foreground group-hover:text-orange-400 transition-colors">{user.name}</p>
+                <p className="text-xs text-muted-foreground">View Profile</p>
               </div>
             </Link>
 
             {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg"
-            >
+            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium transition-all shadow-md hover:shadow-lg">
               <LogOut className="w-4 h-4" />
               <span className="text-sm">Logout</span>
             </button>
           </div>
 
           {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 rounded-lg hover:bg-accent/50 transition-colors text-foreground">
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="md:hidden py-4 border-t border-gray-100"
-          >
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="md:hidden py-4 border-t border-border">
             {/* User Info Mobile */}
-            <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+            <div className="flex items-center gap-3 px-4 py-3 mb-4 bg-card/50 backdrop-blur-sm rounded-lg border border-purple-500/20">
               <UserAvatar name={user.name} size="md" showOnline={true} />
               <div className="flex-1">
-                <p className="font-semibold text-gray-900">{user.name}</p>
+                <p className="font-semibold text-foreground">{user.name}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <Wallet className="w-3 h-3 text-green-600" />
-                  <span className="text-sm font-medium text-green-600">₹{user.balance}</span>
+                  <Wallet className="w-3 h-3 text-orange-400" />
+                  <span className="text-sm font-medium text-orange-400">₹{user.balance}</span>
                 </div>
               </div>
               {/* Mobile Invitation Notifications */}
@@ -173,16 +143,7 @@ export function Header() {
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
                 return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                      isActive
-                        ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
-                        : "text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
+                  <Link key={link.href} href={link.href} onClick={() => setMobileMenuOpen(false)} className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${isActive ? "bg-gradient-to-r from-orange-500 to-purple-600 text-white" : "text-foreground/80 hover:bg-accent/50"}`}>
                     <link.icon className="w-5 h-5" />
                     <span>{link.label}</span>
                   </Link>
@@ -195,7 +156,7 @@ export function Header() {
                   handleLogout();
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center gap-3 w-full px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all"
+                className="flex items-center gap-3 w-full px-4 py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium transition-all"
               >
                 <LogOut className="w-5 h-5" />
                 <span>Logout</span>

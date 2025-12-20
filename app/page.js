@@ -25,11 +25,11 @@ const HomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-      <div className="absolute top-40 right-10 w-72 h-72 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
+      <div className="absolute top-20 left-10 w-72 h-72 bg-purple-500/20 rounded-full mix-blend-lighten filter blur-3xl opacity-40 animate-blob"></div>
+      <div className="absolute top-40 right-10 w-72 h-72 bg-orange-500/20 rounded-full mix-blend-lighten filter blur-3xl opacity-40 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-purple-600/20 rounded-full mix-blend-lighten filter blur-3xl opacity-40 animate-blob animation-delay-4000"></div>
 
       <div className="max-w-6xl w-full relative z-10">
         {/* Hero Section */}
@@ -45,14 +45,14 @@ const HomePage = () => {
             transition={{ duration: 0.8, type: "spring" }}
             className="mb-8 inline-block"
           >
-            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-green-500 via-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl relative">
+            <div className="w-24 h-24 mx-auto bg-gradient-to-br from-orange-500 via-purple-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-2xl relative">
               <Gamepad2 className="w-12 h-12 text-white" />
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 className="absolute -top-2 -right-2"
               >
-                <Sparkles className="w-8 h-8 text-yellow-400" />
+                <Sparkles className="w-8 h-8 text-orange-400" />
               </motion.div>
             </div>
           </motion.div>
@@ -61,7 +61,7 @@ const HomePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-6xl font-bold text-gray-900 mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-600 via-blue-600 to-purple-600"
+            className="text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-purple-500 to-purple-600"
           >
             Welcome to Hazari
           </motion.h1>
@@ -69,7 +69,7 @@ const HomePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-2xl text-gray-700 mb-4"
+            className="text-2xl text-foreground/80 mb-4"
           >
             The ultimate card game experience
           </motion.p>
@@ -77,9 +77,9 @@ const HomePage = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
-            className="flex items-center justify-center gap-2 text-gray-600"
+            className="flex items-center justify-center gap-2 text-muted-foreground"
           >
-            <Trophy className="w-5 h-5 text-yellow-500" />
+            <Trophy className="w-5 h-5 text-orange-400" />
             <span>Join thousands of players worldwide</span>
           </motion.div>
         </motion.div>
@@ -92,18 +92,18 @@ const HomePage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 hover:shadow-3xl transition-all relative overflow-hidden group"
+            className="glass-card rounded-2xl shadow-2xl p-8 hover:shadow-3xl transition-all relative overflow-hidden group"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-100 to-green-200 rounded-full blur-2xl opacity-0 group-hover:opacity-50 transition-opacity -mr-16 -mt-16"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-orange-600/20 rounded-full blur-2xl opacity-0 group-hover:opacity-70 transition-opacity -mr-16 -mt-16"></div>
             <div className="relative">
-              <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                <LogIn className="w-8 h-8 text-green-600" />
+              <div className="bg-orange-500/20 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                <LogIn className="w-8 h-8 text-orange-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Already a Player?</h2>
-              <p className="text-gray-600 mb-6">Login to continue your winning streak</p>
+              <h2 className="text-2xl font-bold text-foreground mb-3">Already a Player?</h2>
+              <p className="text-muted-foreground mb-6">Login to continue your winning streak</p>
               <Link
                 href="/auth/login"
-                className="block w-full py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-center rounded-xl font-semibold text-lg shadow-lg transition-all hover:shadow-xl"
+                className="block w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-center rounded-xl font-semibold text-lg shadow-lg transition-all hover:shadow-xl"
               >
                 Login Now
               </Link>
@@ -116,18 +116,18 @@ const HomePage = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6, duration: 0.6 }}
             whileHover={{ scale: 1.05, y: -5 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 hover:shadow-3xl transition-all relative overflow-hidden group"
+            className="glass-card rounded-2xl shadow-2xl p-8 hover:shadow-3xl transition-all relative overflow-hidden group"
           >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-200 rounded-full blur-2xl opacity-0 group-hover:opacity-50 transition-opacity -mr-16 -mt-16"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-full blur-2xl opacity-0 group-hover:opacity-70 transition-opacity -mr-16 -mt-16"></div>
             <div className="relative">
-              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-                <UserPlus className="w-8 h-8 text-blue-600" />
+              <div className="bg-purple-500/20 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                <UserPlus className="w-8 h-8 text-purple-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">New to Hazari?</h2>
-              <p className="text-gray-600 mb-6">Create account and start your journey</p>
+              <h2 className="text-2xl font-bold text-foreground mb-3">New to Hazari?</h2>
+              <p className="text-muted-foreground mb-6">Create account and start your journey</p>
               <Link
                 href="/auth/signup"
-                className="block w-full py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-center rounded-xl font-semibold text-lg shadow-lg transition-all hover:shadow-xl"
+                className="block w-full py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white text-center rounded-xl font-semibold text-lg shadow-lg transition-all hover:shadow-xl"
               >
                 Sign Up Free
               </Link>
@@ -149,13 +149,13 @@ const HomePage = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 + index * 0.2 }}
               whileHover={{ scale: 1.1, rotate: 2 }}
-              className="text-center bg-white bg-opacity-50 backdrop-blur-sm rounded-xl p-6 shadow-lg"
+              className="text-center glass-card rounded-xl p-6 shadow-lg"
             >
-              <div className="bg-gradient-to-br from-blue-100 to-purple-100 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4">
-                <feature.icon className="w-8 h-8 text-blue-600" />
+              <div className="bg-gradient-to-br from-orange-500/20 to-purple-500/20 w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4">
+                <feature.icon className="w-8 h-8 text-orange-400" />
               </div>
-              <h3 className="font-bold text-gray-900 text-lg mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.desc}</p>
+              <h3 className="font-bold text-foreground text-lg mb-2">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.desc}</p>
             </motion.div>
           ))}
         </motion.div>

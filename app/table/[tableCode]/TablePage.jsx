@@ -3,10 +3,14 @@
 import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTableDetails, useTableInvitations, useSendInvitation, useResetTable } from "@/hooks/api/useTable";
-import { useActiveGame, useStartGame, useAddRound, useCompleteGame } from "@/hooks/api/useGame";
+import { useActiveGame, useStartGame, useAddRound, useEditRound, useCompleteGame } from "@/hooks/api/useGame";
+import { useIncrementRoundWins } from "@/hooks/api/useUser";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, Send, Loader2, UserPlus } from "lucide-react";
+import { Users, Send, Loader2, UserPlus, Crown, X } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { ImUserTie } from "react-icons/im";
+import { SiGitextensions } from "react-icons/si";
+import { Atom, BlinkBlur, ThreeDot } from "react-loading-indicators";
 
 const TablePage = ({ params }) => {
   const unwrappedParams = use(params);
@@ -60,7 +64,11 @@ const TablePage = ({ params }) => {
 
   // Fetch table details from API (only if localStorage is empty)
   const trimmedTableCode = tableCode?.trim() || "";
-  const { data: tableData, isLoading: tableLoading, error: tableError } = useTableDetails(trimmedTableCode, {
+  const {
+    data: tableData,
+    isLoading: tableLoading,
+    error: tableError,
+  } = useTableDetails(trimmedTableCode, {
     enabled: !localTableData && !!trimmedTableCode && /^HGS-\d{6}$/.test(trimmedTableCode),
     retry: false, // Don't retry on 404
   });
@@ -83,13 +91,19 @@ const TablePage = ({ params }) => {
   const sendInvitation = useSendInvitation();
 
   // Fetch active game data from API
-  const { data: gameData, isLoading: gameLoading, refetch: refetchGame } = useActiveGame(trimmedTableCode, {
+  const {
+    data: gameData,
+    isLoading: gameLoading,
+    refetch: refetchGame,
+  } = useActiveGame(trimmedTableCode, {
     refetchInterval: showWinnerModal || isResettingGame || isCompletingGame ? false : 4000, // Stop polling when completing, showing modal, or resetting
   });
   const startGameMutation = useStartGame();
   const addRoundMutation = useAddRound();
+  const editRoundMutation = useEditRound();
   const completeGameMutation = useCompleteGame();
   const resetTableMutation = useResetTable();
+  const incrementRoundWinsMutation = useIncrementRoundWins();
 
   // Track if we've attempted to start the game
   const [gameStartAttempted, setGameStartAttempted] = React.useState(false);
@@ -139,6 +153,10 @@ const TablePage = ({ params }) => {
   // Game extension state
   const [isExtended, setIsExtended] = useState(false);
   const [winningThreshold, setWinningThreshold] = useState(1000);
+
+  // Edit round state
+  const [editingRound, setEditingRound] = useState(null); // { roundNumber, players: [] }
+  const [isEditingRound, setIsEditingRound] = useState(false);
 
   // Load game data from API when available
   useEffect(() => {
@@ -291,6 +309,43 @@ const TablePage = ({ params }) => {
       { gameId, roundData: roundDataForAPI, tableCode: trimmedTableCode },
       {
         onSuccess: (response) => {
+          // Check for 360 points (perfect round) or 0 points and update user profiles
+          roundDataForAPI.players.forEach((player) => {
+            const points = player.points;
+
+            // Player got 360 points (highest/perfect round)
+            if (points === 360) {
+              console.log(`🎯 Player ${player.name} got 360 points! Updating profile...`);
+              incrementRoundWinsMutation.mutate(
+                { userId: player.userId, type: "perfect_round" },
+                {
+                  onSuccess: () => {
+                    console.log(`✅ Perfect round win recorded for ${player.name}`);
+                  },
+                  onError: (error) => {
+                    console.error(`❌ Failed to record perfect round for ${player.name}:`, error);
+                  },
+                }
+              );
+            }
+
+            // Player got 0 points (clean round/no tricks won)
+            if (points === 0) {
+              console.log(`🎯 Player ${player.name} got 0 points! Updating profile...`);
+              incrementRoundWinsMutation.mutate(
+                { userId: player.userId, type: "zero_round" },
+                {
+                  onSuccess: () => {
+                    console.log(`✅ Zero round win recorded for ${player.name}`);
+                  },
+                  onError: (error) => {
+                    console.error(`❌ Failed to record zero round for ${player.name}:`, error);
+                  },
+                }
+              );
+            }
+          });
+
           // Check if game is won (server handles winner detection)
           if (response.data?.game?.status === "completed") {
             const game = response.data.game;
@@ -304,7 +359,6 @@ const TablePage = ({ params }) => {
               // Call completeGame API to finalize the game and update balances
               completeGameMutation.mutate(game.id, {
                 onSuccess: async (completeResponse) => {
-
                   // Refetch ALL players' profiles to get updated balances
                   if (currentUser) {
                     try {
@@ -410,7 +464,6 @@ const TablePage = ({ params }) => {
           { tableCode: trimmedTableCode },
           {
             onSuccess: async () => {
-
               // Wait a bit for database to commit, then refetch with retry logic
               const maxRetries = 5;
               let retryCount = 0;
@@ -510,6 +563,70 @@ const TablePage = ({ params }) => {
     return invitations.find((inv) => inv.position === position && inv.status === "pending");
   };
 
+  // Handle edit round button click
+  const handleEditRound = (round) => {
+    setEditingRound({
+      roundNumber: round.roundNumber,
+      players: round.players.map((p) => ({ ...p, points: p.points })),
+    });
+    setIsEditingRound(true);
+  };
+
+  // Handle edit round input change
+  const handleEditRoundInputChange = (userId, value) => {
+    setEditingRound((prev) => ({
+      ...prev,
+      players: prev.players.map((p) => (p.userId === userId ? { ...p, points: parseInt(value) || 0 } : p)),
+    }));
+  };
+
+  // Handle save edited round
+  const handleSaveEditedRound = async () => {
+    if (!editingRound) return;
+
+    // Validate total points must be 360
+    const totalPoints = editingRound.players.reduce((sum, p) => sum + p.points, 0);
+    if (totalPoints !== 360) {
+      alert(`Total points must be 360. Current total: ${totalPoints}`);
+      return;
+    }
+
+    const gameId = gameData?.data?.game?.id;
+    if (!gameId) {
+      alert("Game not found");
+      return;
+    }
+
+    const table = localTableData || tableData?.data?.table;
+    const roundDataForAPI = {
+      players: editingRound.players.map((player) => ({
+        userId: player.userId,
+        name: player.name,
+        points: player.points,
+      })),
+    };
+
+    editRoundMutation.mutate(
+      { gameId, roundNumber: editingRound.roundNumber, roundData: roundDataForAPI, tableCode: trimmedTableCode },
+      {
+        onSuccess: (response) => {
+          setIsEditingRound(false);
+          setEditingRound(null);
+        },
+        onError: (error) => {
+          console.error("Error editing round:", error);
+          alert(error.response?.data?.message || "Failed to edit round");
+        },
+      }
+    );
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setIsEditingRound(false);
+    setEditingRound(null);
+  };
+
   // Get table from localStorage or API (localStorage has priority)
   const table = localTableData || tableData?.data?.table;
 
@@ -520,6 +637,17 @@ const TablePage = ({ params }) => {
     const isTableAuthor = authorId?.toString() === currentUser.id;
     return isTableAuthor;
   };
+
+  // Get player with highest total points
+  const getHighestScorePlayers = () => {
+    if (players.length === 0) return [];
+    const maxScore = Math.max(...players.map((p) => p.total));
+    // Only show crown if someone has scored (maxScore > 0)
+    if (maxScore === 0) return [];
+    return players.filter((p) => p.total === maxScore).map((p) => p.id);
+  };
+
+  const highestScorePlayers = getHighestScorePlayers();
 
   if (!currentUser) {
     return <LoadingSpinner message="Loading user..." />;
@@ -543,29 +671,32 @@ const TablePage = ({ params }) => {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-green-50 to-blue-50 p-2">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 p-2">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-2 mb-6">
+        <div className="glass-card rounded-lg shadow-lg p-2 mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-bold text-gray-900">Game Table</h1>
-              <p className="text-gray-600 mt-1">
-                Table Code: <span className="font-mono font-semibold text-blue-600">{trimmedTableCode}</span>
+              <p className="text-muted-foreground mt-1">
+                Table Code: <span className="font-mono font-semibold text-orange-400">{trimmedTableCode}</span>
               </p>
-              <div className="mt-2 flex gap-3 text-xs flex-wrap">
-                <span className="bg-green-100 text-green-700 px-2 py-1 rounded">Prize: ₹{table.prize}</span>
-                <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">Fee: ₹{table.matchFee}</span>
-                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
+              <div className="mt-2 grid grid-cols-2 gap-3 text-xs ">
+                <span className="bg-orange-500/20 text-orange-400 px-2 py-1 rounded border border-orange-500/30">Prize: ₹{table.prize}</span>
+                <span className="bg-card/50 text-muted-foreground px-2 py-1 rounded border border-border">Fee: ₹{table.matchFee}</span>
+                <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30">
                   Players: {table.players.length}/{table.maxPlayers}
                 </span>
-                <span className={`px-2 py-1 rounded font-semibold ${table.status === "waiting" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>{table.status === "waiting" ? "Waiting for Players" : table.status === "playing" ? "In Progress" : table.status}</span>
-                {isExtended && <span className="px-2 py-1 rounded font-semibold bg-red-100 text-red-700 animate-pulse">Target: {winningThreshold} ⚡ EXTENDED</span>}
+                <span className={`px-2 py-1 rounded font-semibold border ${table.status === "waiting" ? "bg-orange-500/20 text-orange-400 border-orange-500/30" : "bg-purple-500/20 text-purple-400 border-purple-500/30"}`}>{table.status === "waiting" ? "Waiting for Players" : table.status === "playing" ? "In Progress" : table.status}</span>
+                {isExtended && (
+                  <span className="px-2 py-1 rounded font-semibold bg-destructive/20 text-destructive border border-destructive/30 animate-pulse">
+                    Target: {winningThreshold} <SiGitextensions /> EXTENDED
+                  </span>
+                )}
               </div>
             </div>
-            <div className="flex gap-4 text-xs">
-              <button className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium">Share Code</button>
-              <button onClick={handleLeaveTable} className="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium">
+            <div className="space-y-5 flex flex-col w-4/12 text-xs">
+              <button className="px-2 py-1 bg-card/50 hover:bg-accent/50 rounded-lg font-medium text-foreground border border-border">Share Code</button>
+              <button onClick={handleLeaveTable} className="px-2 py-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-medium">
                 Leave Table
               </button>
             </div>
@@ -581,26 +712,31 @@ const TablePage = ({ params }) => {
 
             return (
               <div key={position} className="">
-                <div className="bg-white rounded-lg shadow-lg p-1">
+                <div className="glass-card rounded-lg shadow-lg p-1 min-w-22">
                   {/* Player Name or Invite Button */}
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center mb-4 justify-between ">
                     {playerInSlot ? (
-                      <div className="flex items-center gap-1">
-                        <h3 className="text-sm font-bold text-gray-900">{playerInSlot.name}</h3>
+                      <div className="relative flex items-center gap-1 ">
+                        <h3 className="text-sm font-bold text-center text-foreground">{playerInSlot.name}</h3>
                         {playerInSlot.isAuthor && (
-                          <span className="text-xs bg-yellow-100 text-yellow-700 px-1 py-0.5 rounded" title="Table Creator">
-                            👑
+                          <span className="text-xs bg-orange-500/20 text-orange-400 px-1 py-0.5 rounded border border-orange-500/30" title="Table Creator">
+                            <ImUserTie className="w-4 h-4" />
+                          </span>
+                        )}
+                        {highestScorePlayers.includes(position) && (
+                          <span className="absolute top-12/12 right-2/8  text-xs  px-1 py-0.5 rounded" title="Highest Score">
+                            <Crown className="w-5 h-5 text-orange-400 fill-orange-400" />
                           </span>
                         )}
                       </div>
                     ) : invitation ? (
                       <div className="flex flex-col gap-1">
-                        <span className="text-xs font-semibold text-orange-600">Invitation Pending</span>
-                        <span className="text-xs text-gray-500">To: {invitation.toPlayerId}</span>
+                        <span className="text-xs font-semibold text-orange-400">Invitation Pending</span>
+                        <span className="text-xs text-muted-foreground">To: {invitation.toPlayerId}</span>
                       </div>
                     ) : (
                       isAuthor() && (
-                        <button onClick={() => handleOpenInviteModal(position)} className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-md font-medium">
+                        <button onClick={() => handleOpenInviteModal(position)} className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded-md font-medium">
                           <UserPlus className="w-3 h-3" />
                           Invite
                         </button>
@@ -611,20 +747,20 @@ const TablePage = ({ params }) => {
                   {playerInSlot ? (
                     <>
                       {/* Total Count */}
-                      <div className="mb-4 py-1 bg-blue-50 rounded-lg text-center">
-                        <p className="text-xs text-gray-600 mb-1">Total Points</p>
-                        <p className="text-xl font-bold text-blue-600">{player?.total || 0}</p>
+                      <div className="mb-4 py-1 bg-purple-500/20 rounded-lg text-center border border-purple-500/30">
+                        {/* <p className="text-xs text-gray-600 mb-1">Total Points</p> */}
+                        <p className="text-xl font-bold text-purple-400">{player?.total || 0}</p>
                       </div>
 
                       {/* Input */}
                       <div className="mb-1">
                         <div className="flex gap-2">
-                          <input type="number" value={player?.currentInput || ""} onChange={(e) => handleInputChange(position, e.target.value)} placeholder="Enter points" disabled={showWinnerModal || isResettingGame || isCompletingGame} className="flex-1 px-2 py-2 border w-22 border-gray-300 rounded-md disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                          <input type="tel" value={player?.currentInput || ""} onChange={(e) => handleInputChange(position, e.target.value)} placeholder="Enter points" disabled={showWinnerModal || isResettingGame || isCompletingGame} className="flex-1 px-2 py-2 border w-20 min-w-20 bg-gray-800 border-border text-foreground rounded-md placeholder:text-muted-foreground disabled:bg-muted disabled:cursor-not-allowed" />
                         </div>
                       </div>
                     </>
                   ) : (
-                    <div className="flex items-center justify-center h-32">{invitation ? <Users className="w-12 h-12 text-orange-300" /> : <Users className="w-12 h-12 text-gray-300" />}</div>
+                    <div className="flex items-center justify-center h-32">{invitation ? <Users className="w-12 h-12 text-orange-400/40" /> : <Users className="w-12 h-12 text-muted-foreground/40" />}</div>
                   )}
                 </div>
               </div>
@@ -632,52 +768,89 @@ const TablePage = ({ params }) => {
           })}
         </div>
         <div className="flex items-center justify-center my-10">
-          <button onClick={handleAddPoints} disabled={showWinnerModal || isResettingGame || isCompletingGame || isAddingPoints} className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+          <button onClick={handleAddPoints} disabled={showWinnerModal || isResettingGame || isCompletingGame || isAddingPoints} className="px-4 py-2 w-40 h-12 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white text-xl rounded-3xl font-medium disabled:bg-muted disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg">
             {isAddingPoints ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Adding...
-              </>
+              <div className="flex items-center justify-center h-full">
+                <ThreeDot color="#fefefe" size="small" text="" textColor="" />
+              </div>
             ) : (
               "+"
             )}
           </button>
         </div>
 
-        <div className="mt-4">
-          <p className="text-base text-center border-b font-medium text-gray-700 mb-5">Recent Points</p>
+        <div className="">
+          <p className="text-base text-center border-b border-border font-medium text-foreground pb-2">Recent Points</p>
           <div className="max-h-96 overflow-y-auto space-y-4">
             {roundHistory.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-2">No points yet</p>
+              <p className="text-sm text-muted-foreground text-center py-2">No points yet</p>
             ) : (
-              roundHistory.map((round, roundIndex) => (
-                <div key={roundIndex} className="bg-gray-50 rounded-md p-3">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Round {round.roundNumber}</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {round.players.map((player) => (
-                      <div key={player.id} className="bg-white rounded p-2 text-center">
-                        <p className="text-xs text-gray-600">{player.name}</p>
-                        <p className="text-lg font-bold text-gray-900">{player.points}</p>
+              [...roundHistory].reverse().map((round, roundIndex) => {
+                const isLatestRound = roundIndex === 0;
+                const isEditingThisRound = isEditingRound && editingRound?.roundNumber === round.roundNumber;
+
+                return (
+                  <div key={roundIndex} className="bg-card/50 backdrop-blur-sm rounded-md p-3 border border-border">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">Round {round.roundNumber}</p>
+                        {round.isEdited && <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded border border-orange-500/30">Edited</span>}
                       </div>
-                    ))}
+                      {isLatestRound && isAuthor() && !isEditingThisRound && !showWinnerModal && (
+                        <button onClick={() => handleEditRound(round)} className="text-xs px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded">
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {isEditingThisRound ? (
+                      <div>
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          {editingRound.players.map((player) => (
+                            <div key={player.userId} className="bg-card rounded p-2 border border-border">
+                              <p className="text-xs text-muted-foreground mb-1 text-center">{player.name}</p>
+                              <input type="tel" value={player.points} onChange={(e) => handleEditRoundInputChange(player.userId, e.target.value)} className="w-full px-2 py-1 border border-border bg-card/50 text-foreground rounded text-center text-sm" />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={handleCancelEdit} className="text-xs px-3 py-1 bg-muted hover:bg-accent text-foreground rounded">
+                            Cancel
+                          </button>
+                          <button onClick={handleSaveEditedRound} disabled={editRoundMutation.isPending} className="text-xs px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded disabled:bg-muted disabled:cursor-not-allowed">
+                            {editRoundMutation.isPending ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2">
+                        {round.players.map((player) => (
+                          <div key={player.id} className="bg-card rounded p-2 text-center border border-border">
+                            <p className="text-xs text-muted-foreground">{player.name}</p>
+                            <p className="text-lg font-bold text-foreground">{player.points}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
         {/* Winner Modal */}
         {showWinnerModal && winner && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="relative w-full max-w-md rounded-xl border bg-background p-6 shadow-xl animate-in fade-in zoom-in-95">
-              {/* Header */}
-              <div className="flex flex-col items-center gap-2 border-b pb-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                  <span className="text-3xl">🎉</span>
-                </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-primary   backdrop-blur-sm p-4">
+            <div className="relative w-full max-w-md rounded-xl border border-border bg-gradient-primary  p-6 shadow-xl animate-in fade-in zoom-in-95">
+              {/* Close Button */}
+              <button onClick={() => setShowWinnerModal(false)} className="absolute top-4 right-4 rounded-full p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" aria-label="Close modal">
+                <X className="w-5 h-5" />
+              </button>
 
-                <h2 className="text-2xl font-semibold tracking-tight">Congratulations</h2>
+              {/* Header */}
+              <div className="flex flex-col items-center gap-2 border-b border-border pb-4">
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">Congratulations</h2>
 
                 <p className="text-sm text-muted-foreground">Winner of the match</p>
 
@@ -688,20 +861,20 @@ const TablePage = ({ params }) => {
 
               {/* Stats */}
               <div className="mt-6 space-y-4">
-                <div className="rounded-lg border p-4 text-center">
+                <div className="rounded-lg border border-border bg-card/50 p-4 text-center">
                   <p className="text-xs text-muted-foreground">Final Score</p>
-                  <p className="text-3xl font-bold">{winner.total}</p>
+                  <p className="text-3xl font-bold text-foreground">{winner.total}</p>
                 </div>
 
-                <div className="rounded-lg border p-4 text-center">
+                <div className="rounded-lg border border-border bg-card/50 p-4 text-center">
                   <p className="text-xs text-muted-foreground">Final Round Points</p>
-                  <p className="text-xl font-semibold">{winner.finalRoundPoints}</p>
+                  <p className="text-xl font-semibold text-foreground">{winner.finalRoundPoints}</p>
                 </div>
 
                 {gameSettings && (
-                  <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4 text-center">
+                  <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 p-4 text-center">
                     <p className="text-xs text-muted-foreground">You Won</p>
-                    <p className="text-3xl font-bold text-green-600">₹{gameSettings.prize}</p>
+                    <p className="text-3xl font-bold text-orange-400">₹{gameSettings.prize}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Prize Pool ₹{gameSettings.matchFee} × 4 players</p>
                   </div>
                 )}
@@ -709,7 +882,7 @@ const TablePage = ({ params }) => {
 
               {/* Footer */}
               <div className="mt-6">
-                <button onClick={handleResetGame} disabled={isResettingGame} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-gray-300 disabled:cursor-not-allowed">
+                <button onClick={handleResetGame} disabled={isResettingGame} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted disabled:cursor-not-allowed">
                   {isResettingGame ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -733,25 +906,25 @@ const TablePage = ({ params }) => {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <label htmlFor="playerId" className="text-sm font-medium text-gray-700">
+                <label htmlFor="playerId" className="text-sm font-medium text-foreground">
                   Player ID
                 </label>
-                <input id="playerId" type="text" placeholder="Enter 6-digit Player ID" value={invitePlayerId} onChange={(e) => setInvitePlayerId(e.target.value)} maxLength={6} className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input id="playerId" type="text" placeholder="Enter 6-digit Player ID" value={invitePlayerId} onChange={(e) => setInvitePlayerId(e.target.value)} maxLength={6} className="w-full rounded-md border border-border bg-card/50 text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground" />
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-gray-600 mb-1">Match Details</p>
+              <div className="bg-purple-500/20 rounded-lg p-3 border border-purple-500/30">
+                <p className="text-xs text-muted-foreground mb-1">Match Details</p>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">Match Fee:</span>
-                  <span className="font-semibold">₹{table.matchFee}</span>
+                  <span className="text-foreground">Match Fee:</span>
+                  <span className="font-semibold text-orange-400">₹{table.matchFee}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-700">Prize Pool:</span>
-                  <span className="font-semibold text-green-600">₹{table.prize}</span>
+                  <span className="text-foreground">Prize Pool:</span>
+                  <span className="font-semibold text-purple-400">₹{table.prize}</span>
                 </div>
               </div>
 
-              <button onClick={handleSendInvitation} disabled={sendInvitation.isPending || !invitePlayerId} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
+              <button onClick={handleSendInvitation} disabled={sendInvitation.isPending || !invitePlayerId} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-purple-600 text-white rounded-md hover:from-orange-600 hover:to-purple-700 disabled:bg-muted disabled:cursor-not-allowed">
                 {sendInvitation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
