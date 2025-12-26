@@ -13,7 +13,8 @@ import { Atom, BlinkBlur, ThreeDot } from "react-loading-indicators";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { useToast } from "@/components/shared/Toast";
 import Snowfall from "@/components/shared/Snowfall";
-import useSocket from "@/hooks/useSocket";
+import { API_CONFIG } from "@/lib/api/config";
+// import useSocket from "@/hooks/useSocket"; // Disabled for serverless deployment
 
 const TablePage = ({ params }) => {
   const unwrappedParams = use(params);
@@ -79,6 +80,7 @@ const TablePage = ({ params }) => {
   } = useTableDetails(trimmedTableCode, {
     enabled: !localTableData && !!trimmedTableCode && /^HGS-\d{6}$/.test(trimmedTableCode),
     retry: false, // Don't retry on 404
+    refetchInterval: 3000, // Poll every 3 seconds for table updates
   });
 
   // Handle table not found error
@@ -104,7 +106,7 @@ const TablePage = ({ params }) => {
     isLoading: gameLoading,
     refetch: refetchGame,
   } = useActiveGame(trimmedTableCode, {
-    refetchInterval: false, // Disabled polling - using Socket.IO for real-time updates
+    refetchInterval: 3000, // Poll every 3 seconds for updates
   });
   const startGameMutation = useStartGame();
   const addRoundMutation = useAddRound();
@@ -112,45 +114,46 @@ const TablePage = ({ params }) => {
   const completeGameMutation = useCompleteGame();
   const resetTableMutation = useResetTable();
 
-  // Socket.IO connection for real-time updates
-  const socket = useSocket(trimmedTableCode);
+  // Socket.IO disabled for serverless deployment
+  // Using polling instead for real-time updates
+  // const socket = useSocket(trimmedTableCode);
 
-  // Listen for socket events
-  useEffect(() => {
-    if (!socket) return;
+  // // Listen for socket events
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    // Table updated (player joined/left)
-    socket.on("table-updated", (updatedTable) => {
-      console.log("🔄 Socket: Table updated", updatedTable);
-      refetchTable();
-    });
+  //   // Table updated (player joined/left)
+  //   socket.on("table-updated", (updatedTable) => {
+  //     console.log("🔄 Socket: Table updated", updatedTable);
+  //     refetchTable();
+  //   });
 
-    // Game started
-    socket.on("game-started", (game) => {
-      console.log("🎮 Socket: Game started", game);
-      refetchGame();
-    });
+  //   // Game started
+  //   socket.on("game-started", (game) => {
+  //     console.log("🎮 Socket: Game started", game);
+  //     refetchGame();
+  //   });
 
-    // Round added
-    socket.on("round-added", (game) => {
-      console.log("🎯 Socket: Round added", game);
-      refetchGame();
-    });
+  //   // Round added
+  //   socket.on("round-added", (game) => {
+  //     console.log("🎯 Socket: Round added", game);
+  //     refetchGame();
+  //   });
 
-    // Game completed
-    socket.on("game-completed", ({ completedGame, newGame }) => {
-      console.log("🏆 Socket: Game completed", completedGame);
-      console.log("🎮 Socket: New game started", newGame);
-      refetchGame();
-    });
+  //   // Game completed
+  //   socket.on("game-completed", ({ completedGame, newGame }) => {
+  //     console.log("🏆 Socket: Game completed", completedGame);
+  //     console.log("🎮 Socket: New game started", newGame);
+  //     refetchGame();
+  //   });
 
-    return () => {
-      socket.off("table-updated");
-      socket.off("game-started");
-      socket.off("round-added");
-      socket.off("game-completed");
-    };
-  }, [socket, refetchTable, refetchGame]);
+  //   return () => {
+  //     socket.off("table-updated");
+  //     socket.off("game-started");
+  //     socket.off("round-added");
+  //     socket.off("game-completed");
+  //   };
+  // }, [socket, refetchTable, refetchGame]);
 
   // Track if we've attempted to start the game
   const [gameStartAttempted, setGameStartAttempted] = React.useState(false);
@@ -387,7 +390,7 @@ const TablePage = ({ params }) => {
                   // Refetch ALL players' profiles to get updated balances
                   if (currentUser) {
                     try {
-                      const response = await fetch(`http://localhost:5000/api/users/${currentUser.id}`);
+                      const response = await fetch(`${API_CONFIG.BASE_URL}/api/users/${currentUser.id}`);
                       const userData = await response.json();
 
                       if (userData.success && userData.data?.user) {
