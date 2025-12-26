@@ -13,6 +13,7 @@ import { useUserProfile, useWalletBalance } from "@/hooks/api";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useCreateTable, useJoinTable } from "@/hooks/api/useTable";
 import { useToast } from "@/components/shared/Toast";
+import Snowfall from "@/components/shared/Snowfall";
 
 const DashboardPage = () => {
   const router = useRouter();
@@ -21,6 +22,7 @@ const DashboardPage = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
   const [matchFee, setMatchFee] = useState("");
+  const [gamePoint, setGamePoint] = useState("");
   const [tableCode, setTableCode] = useState("");
 
   const createTable = useCreateTable();
@@ -102,48 +104,28 @@ const DashboardPage = () => {
       return;
     }
 
+    if (!gamePoint) {
+      toast.warning("Please enter game point");
+      return;
+    }
+
     const newTableCode = generateTableCode();
     const prize = parseFloat(matchFee) * 4;
 
-    // Create table data object
-    const tableData = {
-      tableCode: newTableCode,
-      author: user.id,
-      matchFee: parseFloat(matchFee),
-      prize,
-      status: "waiting",
-      maxPlayers: 4,
-      players: [
-        {
-          userId: user.id,
-          name: user.name,
-          position: 1,
-          isAuthor: true,
-          joinedAt: new Date().toISOString(),
-        },
-      ],
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to localStorage FIRST (optimistic UI)
-    localStorage.setItem(`table-${newTableCode}`, JSON.stringify(tableData));
-
-    // Close dialog and navigate
-    setIsCreateDialogOpen(false);
-    setMatchFee("");
-    router.push(`/table/${newTableCode}`);
-
-    // Then create in database in background
+    // Create in database FIRST, then navigate on success
     createTable.mutate(
       {
         userId: user.id,
         matchFee: parseFloat(matchFee),
         prize,
+        gamePoint: parseFloat(gamePoint),
         tableCode: newTableCode,
       },
       {
         onSuccess: (data) => {
-          // Update localStorage with database response
+          console.log("✅ Table created in database:", data);
+
+          // Save to localStorage
           localStorage.setItem(`table-${newTableCode}`, JSON.stringify(data.data.table));
 
           // Update user balance if returned
@@ -154,9 +136,17 @@ const DashboardPage = () => {
             // Notify other components
             window.dispatchEvent(new Event("userUpdated"));
           }
+
+          // Close dialog, clear inputs, and navigate AFTER success
+          setIsCreateDialogOpen(false);
+          setMatchFee("");
+          setGamePoint("");
+          toast.success(`Table ${newTableCode} created successfully!`);
+          router.push(`/table/${newTableCode}`);
         },
         onError: (error) => {
-          console.error("Error creating table in database:", error);
+          console.error("❌ Error creating table:", error);
+          toast.error(error.response?.data?.message || "Failed to create table");
         },
       }
     );
@@ -220,29 +210,43 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 py-8 px-4 relative">
+      {/* Christmas Snowfall */}
+      <Snowfall snowflakeCount={30} />
+
+      {/* Festive Background Pattern */}
+      <div className="fixed inset-0 opacity-10 pointer-events-none z-0" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "50px 50px" }}></div>
+
+      {/* Christmas Decorations */}
+      <div className="fixed top-4 left-4 text-6xl animate-bounce z-40 pointer-events-none">🎄</div>
+      <div className="fixed top-4 right-4 text-6xl animate-bounce z-40 pointer-events-none" style={{ animationDelay: "0.5s" }}>🎅</div>
+      <div className="fixed bottom-4 left-4 text-5xl animate-pulse z-40 pointer-events-none">🎁</div>
+      <div className="fixed bottom-4 right-4 text-5xl animate-pulse z-40 pointer-events-none" style={{ animationDelay: "0.3s" }}>⛄</div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Welcome Section */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-linear-to-br from-orange-500/10 via-purple-500/50  to-ring/80 rounded-2xl shadow-xl p-8 mb-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br  rounded-full blur-3xl -mr-32 -mt-32"></div>
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-red-500/20 via-green-500/30 to-yellow-500/20 rounded-2xl shadow-xl p-8 mb-8 relative overflow-hidden border-2 border-yellow-400/30">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-red-500/20 to-green-500/20 rounded-full blur-3xl -mr-32 -mt-32"></div>
+          <div className="absolute top-2 right-2 text-3xl">🔔</div>
+          <div className="absolute bottom-2 left-2 text-3xl">🌟</div>
           <div className="relative flex items-center gap-6">
             <UserAvatar name={user.name} size="xl" showOnline={true} />
             <div className="flex-1">
-              <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="text-[clamp(1.5rem,4vw,3.5rem)] font-bold text-foreground mb-2 flex items-center gap-2">
-                Welcome back , {user.name}
-                <Sparkles className="w-8 h-8 text-orange-400" />
+              <motion.h1 initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="text-[clamp(1.5rem,4vw,3.5rem)] font-bold text-white mb-2 flex items-center gap-2">
+                🎄 Welcome back, {user.name} 🎄
+                <Sparkles className="w-8 h-8 text-yellow-400" />
               </motion.h1>
-              <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="text-muted-foreground font-semibold text-sm">
-                Ready to dominate some Hazari games ?
+              <motion.p initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="text-green-200 font-semibold text-sm">
+                🎅 Ready to dominate some Hazari games this Christmas? 🎁
               </motion.p>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-3 flex items-center gap-4">
-                <div className="px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-purple-500/20">
-                  <p className="text-xs text-muted-foreground">Player ID</p>
-                  <p className="text-xl font-mono font-bold text-purple-400">{user.playerId}</p>
+                <div className="px-4 py-2 bg-red-900/50 backdrop-blur-sm rounded-lg border border-yellow-500/30">
+                  <p className="text-xs text-green-200">🎮 Player ID</p>
+                  <p className="text-xl font-mono font-bold text-yellow-400">{user.playerId}</p>
                 </div>
-                <div className="px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-orange-500/20">
-                  <p className="text-xs text-muted-foreground">Win Rate</p>
-                  <p className="text-lg font-bold text-orange-400">{winRate}%</p>
+                <div className="px-4 py-2 bg-green-900/50 backdrop-blur-sm rounded-lg border border-red-500/30">
+                  <p className="text-xs text-red-200">🏆 Win Rate</p>
+                  <p className="text-lg font-bold text-yellow-400">{winRate}%</p>
                 </div>
               </motion.div>
             </div>
@@ -261,21 +265,21 @@ const DashboardPage = () => {
 
         {/* Active Table Alert */}
         {activeTable && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl shadow-xl p-6 mb-8 text-white">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-red-600 via-green-600 to-red-600 rounded-2xl shadow-xl p-6 mb-8 text-white border-2 border-yellow-400/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse">
-                  <GamepadIcon className="w-6 h-6 text-white" />
+                <div className="w-12 h-12 bg-yellow-400/30 rounded-full flex items-center justify-center animate-pulse">
+                  <GamepadIcon className="w-6 h-6 text-yellow-300" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">You have an active game!</h3>
+                  <h3 className="text-xl font-bold">🎄 You have an active game! 🎄</h3>
                   <p className="text-white/90 text-sm">
                     Table Code: <span className="font-mono font-semibold">{activeTable.tableCode}</span> • Players: {activeTable.players?.length}/{activeTable.maxPlayers || 4} • Status: {activeTable.status}
                   </p>
                 </div>
               </div>
-              <button onClick={() => router.push(`/table/${activeTable.tableCode}`)} className="px-6 py-3 bg-white text-orange-600 rounded-lg font-semibold hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl">
-                Continue Playing →
+              <button onClick={() => router.push(`/table/${activeTable.tableCode}`)} className="px-6 py-3 bg-yellow-400 text-red-900 rounded-lg font-semibold hover:bg-yellow-300 transition-all shadow-lg hover:shadow-xl">
+                🎮 Continue Playing →
               </button>
             </div>
           </motion.div>
@@ -283,43 +287,45 @@ const DashboardPage = () => {
 
         {/* Quick Actions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-          <h2 className="text-2xl font-bold text-foreground mb-6">Quick Actions</h2>
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+            🎁 Quick Actions 🎁
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.6 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <div onClick={() => setIsCreateDialogOpen(true)} className="cursor-pointer glass-card rounded-2xl p-6 border-2 border-orange-500/30 hover:border-orange-500/60 transition-all shadow-lg hover:shadow-2xl group">
+              <div onClick={() => setIsCreateDialogOpen(true)} className="cursor-pointer glass-card rounded-2xl p-6 border-2 border-red-500/50 hover:border-yellow-400/80 transition-all shadow-lg hover:shadow-2xl group bg-gradient-to-br from-red-900/50 to-green-900/50">
                 <div className="flex items-center gap-4 mb-3">
-                  <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <PlusCircle className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground group-hover:text-orange-400 transition-colors">Create Table</h3>
-                    <p className="text-sm text-muted-foreground">Start a new game and invite friends</p>
+                    <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition-colors">🎄 Create Table</h3>
+                    <p className="text-sm text-green-200">Start a new game and invite friends</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-border">
-                  <span className="text-xs text-muted-foreground">Set match fee & prize pool</span>
-                  <div className="w-8 h-8 bg-orange-500/20 rounded-full flex items-center justify-center group-hover:bg-orange-500/30 transition-colors">
-                    <Play className="w-4 h-4 text-orange-400" />
+                <div className="flex items-center justify-between pt-3 border-t border-yellow-500/30">
+                  <span className="text-xs text-green-200">Set match fee & prize pool</span>
+                  <div className="w-8 h-8 bg-red-500/30 rounded-full flex items-center justify-center group-hover:bg-yellow-400/30 transition-colors">
+                    <Play className="w-4 h-4 text-yellow-400" />
                   </div>
                 </div>
               </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.7 }} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-              <div onClick={() => setIsJoinDialogOpen(true)} className="cursor-pointer glass-card rounded-2xl p-6 border-2 border-purple-500/30 hover:border-purple-500/60 transition-all shadow-lg hover:shadow-2xl group">
+              <div onClick={() => setIsJoinDialogOpen(true)} className="cursor-pointer glass-card rounded-2xl p-6 border-2 border-green-500/50 hover:border-yellow-400/80 transition-all shadow-lg hover:shadow-2xl group bg-gradient-to-br from-green-900/50 to-red-900/50">
                 <div className="flex items-center gap-4 mb-3">
-                  <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <Users className="w-8 h-8 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground group-hover:text-purple-400 transition-colors">Join Table</h3>
-                    <p className="text-sm text-muted-foreground">Enter table code to join a game</p>
+                    <h3 className="text-xl font-bold text-white group-hover:text-yellow-300 transition-colors">🎅 Join Table</h3>
+                    <p className="text-sm text-red-200">Enter table code to join a game</p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-border">
-                  <span className="text-xs text-muted-foreground">Join with 6-digit code</span>
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-                    <Play className="w-4 h-4 text-purple-400" />
+                <div className="flex items-center justify-between pt-3 border-t border-yellow-500/30">
+                  <span className="text-xs text-red-200">Join with 6-digit code</span>
+                  <div className="w-8 h-8 bg-green-500/30 rounded-full flex items-center justify-center group-hover:bg-yellow-400/30 transition-colors">
+                    <Play className="w-4 h-4 text-yellow-400" />
                   </div>
                 </div>
               </div>
@@ -344,13 +350,13 @@ const DashboardPage = () => {
 
       {/* Create Table Modal */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="glass-card border-orange-500/30">
+        <DialogContent className="glass-card border-red-500/50 bg-gradient-to-br from-red-900/90 to-green-900/90">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <PlusCircle className="w-6 h-6 text-orange-400" />
-              Create New Table
+            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
+              <PlusCircle className="w-6 h-6 text-yellow-400" />
+              🎄 Create New Table 🎄
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">Set up a new game table. You will be Player 1.</DialogDescription>
+            <DialogDescription className="text-green-200">Set up a new game table. You will be Player 1.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Player Name Display */}
@@ -372,17 +378,25 @@ const DashboardPage = () => {
               )}
             </div>
 
+            {/* Game Point Input */}
+            <div className="space-y-2">
+              <label htmlFor="gamePoint" className="text-sm font-medium text-foreground">
+                Game Point
+              </label>
+              <input id="gamePoint" type="number" placeholder="Enter game point" value={gamePoint} onChange={(e) => setGamePoint(e.target.value)} className="w-full rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+
             {/* Start Now Button */}
-            <button onClick={handleCreateTable} disabled={createTable.isPending} className="w-full mt-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <button onClick={handleCreateTable} disabled={createTable.isPending} className="w-full mt-4 bg-gradient-to-r from-red-600 to-green-600 hover:from-red-700 hover:to-green-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border-2 border-yellow-400/50">
               {createTable.isPending ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating Table...
+                  🎄 Creating Table...
                 </>
               ) : (
                 <>
                   <PlusCircle className="w-5 h-5" />
-                  Create Table Now
+                  🎁 Create Table Now
                 </>
               )}
             </button>
@@ -392,13 +406,13 @@ const DashboardPage = () => {
 
       {/* Join Table Modal */}
       <Dialog open={isJoinDialogOpen} onOpenChange={setIsJoinDialogOpen}>
-        <DialogContent className="glass-card border-purple-500/30">
+        <DialogContent className="glass-card border-green-500/50 bg-gradient-to-br from-green-900/90 to-red-900/90">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
-              <Users className="w-6 h-6 text-purple-400" />
-              Join Existing Table
+            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
+              <Users className="w-6 h-6 text-yellow-400" />
+              🎅 Join Existing Table 🎅
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">Enter the table code to join an existing game.</DialogDescription>
+            <DialogDescription className="text-red-200">Enter the table code to join an existing game.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             {/* Player Name Display */}
@@ -419,16 +433,16 @@ const DashboardPage = () => {
             </div>
 
             {/* Join Now Button */}
-            <button onClick={handleJoinTable} disabled={joinTable.isPending} className="w-full mt-4 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <button onClick={handleJoinTable} disabled={joinTable.isPending} className="w-full mt-4 bg-gradient-to-r from-green-600 to-red-600 hover:from-green-700 hover:to-red-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 border-2 border-yellow-400/50">
               {joinTable.isPending ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Joining Table...
+                  🎄 Joining Table...
                 </>
               ) : (
                 <>
                   <Users className="w-5 h-5" />
-                  Join Table Now
+                  🎅 Join Table Now
                 </>
               )}
             </button>

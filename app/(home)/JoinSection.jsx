@@ -9,6 +9,7 @@ const JoinSection = () => {
   const router = useRouter();
   const [playerName, setPlayerName] = useState("");
   const [matchFee, setMatchFee] = useState("");
+  const [gamePoint, setGamePoint] = useState("");
 
   // Generate unique table code
   const generateTableCode = () => {
@@ -23,6 +24,11 @@ const JoinSection = () => {
       return;
     }
 
+    if (!gamePoint) {
+      alert("Please enter game point");
+      return;
+    }
+
     const tableCode = generateTableCode();
     const prize = parseFloat(matchFee) * 4;
 
@@ -30,6 +36,7 @@ const JoinSection = () => {
     localStorage.setItem(`game-${tableCode}-settings`, JSON.stringify({
       matchFee: parseFloat(matchFee),
       prize,
+      gamePoint: parseFloat(gamePoint),
       author: playerName,
       createdAt: new Date().toISOString(),
       tableCode,
@@ -96,6 +103,21 @@ const JoinSection = () => {
                     placeholder="Enter match fee"
                     value={matchFee}
                     onChange={(e) => setMatchFee(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Game Point Input */}
+                <div className="space-y-2">
+                  <label htmlFor="gamePoint" className="text-sm font-medium text-gray-700">
+                    Game Point
+                  </label>
+                  <input
+                    id="gamePoint"
+                    type="number"
+                    placeholder="Enter game point"
+                    value={gamePoint}
+                    onChange={(e) => setGamePoint(e.target.value)}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>

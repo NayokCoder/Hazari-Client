@@ -4,7 +4,6 @@ import React, { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTableDetails, useTableInvitations, useSendInvitation, useResetTable } from "@/hooks/api/useTable";
 import { useActiveGame, useStartGame, useAddRound, useEditRound, useCompleteGame } from "@/hooks/api/useGame";
-import { useIncrementRoundWins } from "@/hooks/api/useUser";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Users, Send, Loader2, UserPlus, Crown, X, Share2, Copy, Check, LogOut } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -13,6 +12,8 @@ import { SiGitextensions } from "react-icons/si";
 import { Atom, BlinkBlur, ThreeDot } from "react-loading-indicators";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import { useToast } from "@/components/shared/Toast";
+import Snowfall from "@/components/shared/Snowfall";
+import useSocket from "@/hooks/useSocket";
 
 const TablePage = ({ params }) => {
   const unwrappedParams = use(params);
@@ -74,6 +75,7 @@ const TablePage = ({ params }) => {
     data: tableData,
     isLoading: tableLoading,
     error: tableError,
+    refetch: refetchTable,
   } = useTableDetails(trimmedTableCode, {
     enabled: !localTableData && !!trimmedTableCode && /^HGS-\d{6}$/.test(trimmedTableCode),
     retry: false, // Don't retry on 404
@@ -102,14 +104,53 @@ const TablePage = ({ params }) => {
     isLoading: gameLoading,
     refetch: refetchGame,
   } = useActiveGame(trimmedTableCode, {
-    refetchInterval: showWinnerModal || isResettingGame || isCompletingGame ? false : 4000, // Stop polling when completing, showing modal, or resetting
+    refetchInterval: false, // Disabled polling - using Socket.IO for real-time updates
   });
   const startGameMutation = useStartGame();
   const addRoundMutation = useAddRound();
   const editRoundMutation = useEditRound();
   const completeGameMutation = useCompleteGame();
   const resetTableMutation = useResetTable();
-  const incrementRoundWinsMutation = useIncrementRoundWins();
+
+  // Socket.IO connection for real-time updates
+  const socket = useSocket(trimmedTableCode);
+
+  // Listen for socket events
+  useEffect(() => {
+    if (!socket) return;
+
+    // Table updated (player joined/left)
+    socket.on("table-updated", (updatedTable) => {
+      console.log("🔄 Socket: Table updated", updatedTable);
+      refetchTable();
+    });
+
+    // Game started
+    socket.on("game-started", (game) => {
+      console.log("🎮 Socket: Game started", game);
+      refetchGame();
+    });
+
+    // Round added
+    socket.on("round-added", (game) => {
+      console.log("🎯 Socket: Round added", game);
+      refetchGame();
+    });
+
+    // Game completed
+    socket.on("game-completed", ({ completedGame, newGame }) => {
+      console.log("🏆 Socket: Game completed", completedGame);
+      console.log("🎮 Socket: New game started", newGame);
+      refetchGame();
+    });
+
+    return () => {
+      socket.off("table-updated");
+      socket.off("game-started");
+      socket.off("round-added");
+      socket.off("game-completed");
+    };
+  }, [socket, refetchTable, refetchGame]);
 
   // Track if we've attempted to start the game
   const [gameStartAttempted, setGameStartAttempted] = React.useState(false);
@@ -124,7 +165,19 @@ const TablePage = ({ params }) => {
       // Auto-start game when table is full and game not started yet
       if (apiTable.players?.length === 4 && apiTable.status === "playing" && !gameData?.data?.game && !gameStartAttempted && !startGameMutation.isPending) {
         setGameStartAttempted(true);
-        startGameMutation.mutate({ tableCode: trimmedTableCode });
+        startGameMutation.mutate(
+          { tableCode: trimmedTableCode },
+          {
+            onSuccess: () => {
+              console.log("✅ Game auto-started successfully");
+              refetchGame();
+            },
+            onError: (error) => {
+              console.error("❌ Failed to auto-start game:", error);
+              setGameStartAttempted(false); // Reset to allow retry
+            },
+          }
+        );
       }
     }
   }, [tableData, trimmedTableCode, gameData?.data?.game, gameStartAttempted, startGameMutation.isPending]);
@@ -315,36 +368,8 @@ const TablePage = ({ params }) => {
       { gameId, roundData: roundDataForAPI, tableCode: trimmedTableCode },
       {
         onSuccess: (response) => {
-          // Check for 360 points (perfect round) or 0 points and update user profiles
-          roundDataForAPI.players.forEach((player) => {
-            const points = player.points;
-
-            // Player got 360 points (highest/perfect round)
-            if (points === 360) {
-              incrementRoundWinsMutation.mutate(
-                { userId: player.userId, type: "perfect_round" },
-                {
-                  onSuccess: () => {},
-                  onError: (error) => {
-                    console.error(`❌ Failed to record perfect round for ${player.name}:`, error);
-                  },
-                }
-              );
-            }
-
-            // Player got 0 points (clean round/no tricks won)
-            if (points === 0) {
-              incrementRoundWinsMutation.mutate(
-                { userId: player.userId, type: "zero_round" },
-                {
-                  onSuccess: () => {},
-                  onError: (error) => {
-                    console.error(`❌ Failed to record zero round for ${player.name}:`, error);
-                  },
-                }
-              );
-            }
-          });
+          // Server automatically tracks perfect rounds (360) and zero rounds (0) in addRound endpoint
+          // No need for client-side tracking
 
           // Check if game is won (server handles winner detection)
           if (response.data?.game?.status === "completed") {
@@ -489,11 +514,6 @@ const TablePage = ({ params }) => {
             },
           }
         );
-      },
-      onError: (error) => {
-        console.error("❌ Failed to reset table:", error);
-        setIsResettingGame(false);
-        alert("Failed to reset table. Please try again.");
       },
     });
   };
@@ -690,35 +710,47 @@ const TablePage = ({ params }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 p-2">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-800 p-2 relative">
+      {/* Christmas Snowfall */}
+      <Snowfall snowflakeCount={25} />
+
+      {/* Festive Background Pattern */}
+      <div className="fixed inset-0 opacity-10 pointer-events-none z-0" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "50px 50px" }}></div>
+
+      {/* Christmas Decorations */}
+      <div className="fixed top-4 left-4 text-5xl animate-bounce z-40 pointer-events-none">🎄</div>
+      <div className="fixed top-4 right-4 text-5xl animate-bounce z-40 pointer-events-none" style={{ animationDelay: "0.5s" }}>🎅</div>
+      <div className="fixed bottom-4 left-4 text-4xl animate-pulse z-40 pointer-events-none">🎁</div>
+      <div className="fixed bottom-4 right-4 text-4xl animate-pulse z-40 pointer-events-none" style={{ animationDelay: "0.3s" }}>⛄</div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
-        <div className="glass-card rounded-lg shadow-lg p-2 mb-6">
+        <div className="glass-card rounded-lg shadow-lg p-2 mb-6 border-2 border-yellow-400/30 bg-gradient-to-br from-red-900/50 to-green-900/50">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-muted-foreground mt-1">
-                Table Code: <span className="font-mono font-semibold text-orange-400">{trimmedTableCode}</span>
+              <p className="text-green-200 mt-1 flex items-center gap-2">
+                🎄 Table Code: <span className="font-mono font-semibold text-yellow-400">{trimmedTableCode}</span> 🎄
               </p>
               <div className="mt-2 grid grid-cols-2 gap-3 text-xs ">
-                <span className="bg-orange-500/20 text-orange-400 px-2 py-1 rounded border border-orange-500/30">Prize: ৳ {table.prize}</span>
-                <span className="bg-card/50 text-muted-foreground px-2 py-1 rounded border border-border">Fee: ৳ {table.matchFee}</span>
-                <span className="bg-purple-500/20 text-purple-400 px-2 py-1 rounded border border-purple-500/30">
-                  Players: {table.players.length}/{table.maxPlayers}
+                <span className="bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded border border-yellow-500/40">🏆 Prize: ৳ {table.prize}</span>
+                <span className="bg-red-900/50 text-red-200 px-2 py-1 rounded border border-red-500/30">💰 Fee: ৳ {table.matchFee}</span>
+                <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded border border-green-500/40">
+                  👥 Players: {table.players.length}/{table.maxPlayers}
                 </span>
-                <span className={`px-2 py-1 rounded font-semibold border ${table.status === "waiting" ? "bg-orange-500/20 text-orange-400 border-orange-500/30" : "bg-purple-500/20 text-purple-400 border-purple-500/30"}`}>{table.status === "waiting" ? "Waiting for Players" : table.status === "playing" ? "In Progress" : table.status}</span>
+                <span className={`px-2 py-1 rounded font-semibold border ${table.status === "waiting" ? "bg-red-500/20 text-red-300 border-red-500/40" : "bg-green-500/20 text-green-300 border-green-500/40"}`}>{table.status === "waiting" ? "🎅 Waiting for Players" : table.status === "playing" ? "🎮 In Progress" : table.status}</span>
                 {isExtended && (
-                  <span className="px-2 py-1 rounded font-semibold bg-destructive/20 text-destructive border border-destructive/30 animate-pulse">
-                    Target: {winningThreshold} <SiGitextensions /> EXTENDED
+                  <span className="px-2 py-1 rounded font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 animate-pulse">
+                    🎯 Target: {winningThreshold} <SiGitextensions /> EXTENDED
                   </span>
                 )}
               </div>
             </div>
             <div className="space-y-5 flex flex-col w-3/12 text-xs">
-              <button onClick={handleShareCode} className="px-2 py-1 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg">
-                Share Code
+              <button onClick={handleShareCode} className="px-2 py-1 bg-gradient-to-r from-red-600 to-green-600 hover:from-red-700 hover:to-green-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg border border-yellow-400/50">
+                🎁 Share Code
               </button>
               <button onClick={handleLeaveTable} className="px-2 py-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg">
-                Leave Table
+                🚪 Leave Table
               </button>
             </div>
           </div>
